@@ -164,6 +164,7 @@ import { AuthService } from './services/auth.service';
     TokenModule,
     CreateMessageChannelService,
     CreateCalendarChannelService,
+    SignInUpService,
   ],
 })
 export class AuthModule {}

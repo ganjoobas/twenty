@@ -8,6 +8,9 @@ This repository is upstream [Twenty](https://github.com/twentyhq/twenty) at tag
   trusted WSChat server (see its `README.md`). It is off unless
   `WSCHAT_BRIDGE_SECRET` is set. Registered in `core-engine.module.ts`; its
   config variable is declared in `twenty-config/config-variables.ts`.
+  It also lets WSChat create a workspace for a client company and keep its
+  members in sync, with no sign-up, invitations or onboarding screens. For
+  that, `auth.module.ts` exports `SignInUpService` (one added line).
 - `.github/workflows/wschat-build-image.yml`: builds the official
   `packages/twenty-docker/twenty/Dockerfile` (target `twenty`, `linux/amd64`)
   when a `wschat-v*` tag is pushed, and attaches the gzipped `docker save`

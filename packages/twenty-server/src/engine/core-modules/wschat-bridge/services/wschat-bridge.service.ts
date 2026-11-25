@@ -20,6 +20,7 @@ import { AuthProviderEnum } from 'src/engine/core-modules/workspace/types/worksp
 import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { type WschatBridgeLoginLinkDTO } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-login-link.dto';
 import { type WschatBridgeLoginLinkInput } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-login-link.input';
+import { maskEmail } from 'src/engine/core-modules/wschat-bridge/utils/mask-email.util';
 import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system-auth-context.util';
 import { WorkspaceOrmManager } from 'src/engine/twenty-orm/workspace-orm.manager';
 import { type WorkspaceMemberWorkspaceEntity } from 'src/modules/workspace-member/standard-objects/workspace-member.workspace-entity';
@@ -29,12 +30,6 @@ const NOT_READY_ACTIVATION_STATUSES: WorkspaceActivationStatus[] = [
   WorkspaceActivationStatus.PENDING_CREATION,
   WorkspaceActivationStatus.ONGOING_CREATION,
 ];
-
-const maskEmail = (email: string) => {
-  const [localPart, domain] = email.split('@');
-
-  return `${localPart.charAt(0)}***@${domain ?? ''}`;
-};
 
 @Injectable()
 export class WschatBridgeService {
