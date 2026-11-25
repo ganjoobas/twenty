@@ -5,20 +5,21 @@ import { MEMBER_ROLE_UNIVERSAL_IDENTIFIER } from 'twenty-shared/constants';
 import { isDefined } from 'twenty-shared/utils';
 import { Repository } from 'typeorm';
 
-import { ApiKeyService } from 'src/engine/core-modules/api-key/services/api-key.service';
 import { ApprovedAccessDomainService } from 'src/engine/core-modules/approved-access-domain/services/approved-access-domain.service';
 import { UserWorkspaceEntity } from 'src/engine/core-modules/user-workspace/user-workspace.entity';
 import { type WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { WorkspaceInvitationService } from 'src/engine/core-modules/workspace-invitation/services/workspace-invitation.service';
-import { WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE_UNIVERSAL_IDENTIFIER } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-company-admin-role.constant';
+import { WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-managed-roles.constant';
 import { type WschatBridgeEnforceReportDTO } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-enforce-report.dto';
-import { WschatBridgeCompanyAdminRoleService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-company-admin-role.service';
+import { WschatBridgeApiKeysService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-api-keys.service';
+import { WschatBridgeManagedRoleService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-managed-role.service';
 import { WschatBridgeMembershipService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-membership.service';
 import { WschatBridgeOnboardingService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-onboarding.service';
 import { WschatBridgeRolesService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-roles.service';
 import { WschatBridgeServiceUserService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-service-user.service';
 import { WschatBridgeWorkspaceLookupService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-lookup.service';
 import { WschatBridgeWorkspaceSettingsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-settings.service';
+import { WebhookService } from 'src/engine/metadata-modules/webhook/webhook.service';
 import { RoleAssignmentWriteService } from 'src/engine/permissions/role-assignment/role-assignment-write.service';
 import { RolePermissionsService } from 'src/engine/permissions/role-permissions.service';
 import { STANDARD_ROLE } from 'src/engine/workspace-manager/twenty-standard-application/constants/standard-role.constant';
@@ -37,12 +38,13 @@ export class WschatBridgeWorkspaceEnforcementService {
     private readonly roleAssignmentWriteService: RoleAssignmentWriteService,
     private readonly workspaceInvitationService: WorkspaceInvitationService,
     private readonly approvedAccessDomainService: ApprovedAccessDomainService,
-    private readonly apiKeyService: ApiKeyService,
     private readonly workspaceLookupService: WschatBridgeWorkspaceLookupService,
     private readonly serviceUserService: WschatBridgeServiceUserService,
     private readonly rolesService: WschatBridgeRolesService,
     private readonly membershipService: WschatBridgeMembershipService,
-    private readonly companyAdminRoleService: WschatBridgeCompanyAdminRoleService,
+    private readonly managedRoleService: WschatBridgeManagedRoleService,
+    private readonly apiKeysService: WschatBridgeApiKeysService,
+    private readonly webhookService: WebhookService,
     private readonly onboardingService: WschatBridgeOnboardingService,
     private readonly workspaceSettingsService: WschatBridgeWorkspaceSettingsService,
   ) {}
@@ -56,8 +58,9 @@ export class WschatBridgeWorkspaceEnforcementService {
 
     const serviceUserAdded = await this.ensureServiceUserIsAdmin(workspace);
 
-    const companyAdminRole = await this.companyAdminRoleService.ensure({
+    const companyAdminRole = await this.managedRoleService.ensure({
       workspaceId: workspace.id,
+      role: WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE,
       label: adminRoleLabel?.trim(),
     });
 
@@ -66,8 +69,11 @@ export class WschatBridgeWorkspaceEnforcementService {
       companyAdminRole.roleId,
     );
 
-    const settingsFixed =
+    const { settingsFixed, iframeMediaPermissions } =
       await this.workspaceSettingsService.enforceOwnedSettings(workspace.id);
+
+    const { foreignApiKeysRevoked, activeApiKeys } =
+      await this.apiKeysService.enforce(workspace.id);
 
     const report: WschatBridgeEnforceReportDTO = {
       serviceUserAdded,
@@ -78,9 +84,10 @@ export class WschatBridgeWorkspaceEnforcementService {
       settingsFixed,
       invitationsDeleted: await this.deleteInvitations(workspace),
       approvedDomainsDeleted: await this.deleteApprovedDomains(workspace),
-      activeApiKeys: (
-        await this.apiKeyService.findActiveByWorkspaceId(workspace.id)
-      ).length,
+      iframeMediaPermissions,
+      foreignApiKeysRevoked,
+      activeApiKeys,
+      webhooks: (await this.webhookService.findAll(workspace.id)).length,
       sso: 'not checked',
     };
 
@@ -146,7 +153,7 @@ export class WschatBridgeWorkspaceEnforcementService {
         humanAdminUserWorkspaceIds.push(userWorkspace.id);
       } else if (
         roleUniversalIdentifier !==
-          WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE_UNIVERSAL_IDENTIFIER &&
+          WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE.universalIdentifier &&
         roleUniversalIdentifier !== MEMBER_ROLE_UNIVERSAL_IDENTIFIER
       ) {
         unexpectedRoles++;

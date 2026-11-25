@@ -10,6 +10,7 @@ import { type UpdateWorkspaceInput } from 'src/engine/core-modules/workspace/dto
 import { WorkspaceService } from 'src/engine/core-modules/workspace/services/workspace.service';
 import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { WSCHAT_BRIDGE_ERROR_CODES } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-error-codes.constant';
+import { WschatBridgeRolesService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-roles.service';
 import { buildBridgeWorkspaceSettingsDrift } from 'src/engine/core-modules/wschat-bridge/utils/build-bridge-workspace-settings-drift.util';
 import { normalizeBridgeEmbeddingOrigins } from 'src/engine/core-modules/wschat-bridge/utils/normalize-bridge-embedding-origins.util';
 import { wschatBridgeHttpException } from 'src/engine/core-modules/wschat-bridge/utils/wschat-bridge-http-exception.util';
@@ -25,6 +26,9 @@ export type WschatBridgeWorkspaceCoreFields = Pick<
   | 'isMicrosoftAuthEnabled'
   | 'allowImpersonation'
   | 'editableProfileFields'
+  | 'isTwoFactorAuthenticationEnforced'
+  | 'workspaceDiscoverability'
+  | 'defaultRoleId'
 >;
 
 @Injectable()
@@ -36,6 +40,7 @@ export class WschatBridgeWorkspaceSettingsService {
     @InjectRepository(UserWorkspaceEntity)
     private readonly userWorkspaceRepository: Repository<UserWorkspaceEntity>,
     private readonly workspaceService: WorkspaceService,
+    private readonly rolesService: WschatBridgeRolesService,
   ) {}
 
   normalizeEmbeddingOriginsOrThrow(origins: string[]): string[] {
@@ -91,23 +96,33 @@ export class WschatBridgeWorkspaceSettingsService {
     );
   }
 
-  // Sign-in and profile settings the bridge owns; returns the names of the fields it had to change
-  async enforceOwnedSettings(workspaceId: string): Promise<string[]> {
+  // Sign-in, profile and membership settings the bridge owns. iframeMediaPermissions has no clearing service
+  // method (only a per-origin upsert), so it is reported rather than fixed
+  async enforceOwnedSettings(
+    workspaceId: string,
+  ): Promise<{ settingsFixed: string[]; iframeMediaPermissions: number }> {
     const workspace = await this.workspaceRepository.findOneByOrFail({
       id: workspaceId,
     });
 
-    const drift = buildBridgeWorkspaceSettingsDrift(workspace);
+    const drift = buildBridgeWorkspaceSettingsDrift(workspace, {
+      memberRoleId:
+        await this.rolesService.resolveMemberRoleIdOrThrow(workspaceId),
+    });
 
     await this.updateCoreFields({
       workspaceId,
       fields: {
         ...drift,
         editableProfileFields: drift.editableProfileFields ?? undefined,
+        defaultRoleId: drift.defaultRoleId ?? undefined,
       },
     });
 
-    return Object.keys(drift);
+    return {
+      settingsFixed: Object.keys(drift),
+      iframeMediaPermissions: workspace.iframeMediaPermissions?.length ?? 0,
+    };
   }
 
   // The upstream API edits one origin at a time; removals go first so the 20-origin cap is never crossed mid-way.

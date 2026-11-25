@@ -14,6 +14,7 @@ This repository is upstream [Twenty](https://github.com/twentyhq/twenty) at tag
   People and sign-in settings of bridge workspaces are owned by WSChat: a
   service user (`WSCHAT_BRIDGE_SERVICE_USER_EMAIL`) holds the Admin role,
   company admins get a restricted role, and `/enforce` repairs drift.
+  API keys are issued only through the bridge, with a records-only role.
 - `auth/constants/max-workspaces-without-organization-key.constant.ts`: the
   number of workspaces allowed without an enterprise key is raised from 5 to
   10000, because every WSChat client company gets its own workspace.

@@ -117,10 +117,20 @@ people or loosen sign-in.
   `AI_SETTINGS`. No members, security, workspace, roles or API key settings.
   Members read back as `admin` both on this role and on the standard Admin
   (until `enforce` converts them).
+- **API role.** Bridge-issued API keys hold a custom role with the fixed
+  universal identifier `a2b125d5-8aeb-4272-b482-e27d70e9b3c4`, label `API`:
+  read, create/update and soft-delete all records, no destroy, no tools, no
+  agent chat channels, no settings flags at all, assignable to API keys only.
+  Upstream key creation needs the `ROLES` flag, which no human has here, so
+  keys exist only through the endpoints below.
 - **Owned settings**, applied at creation and by `enforce` through
   `updateWorkspaceById`: password, public invite link, Google and Microsoft
-  sign-in and impersonation off; `email` removed from `editableProfileFields`
-  (other entries kept; WSChat identifies people by e-mail).
+  sign-in, impersonation and enforced 2FA off; `email` removed from
+  `editableProfileFields` (other entries kept; WSChat identifies people by
+  e-mail); `workspaceDiscoverability = HIDDEN` (never listed in the
+  root-domain picker); `defaultRoleId` = the standard Member role. Iframe
+  camera/microphone grants (`iframeMediaPermissions`) are only reported:
+  upstream has no service method that clears them.
 
 ### `POST /wschat-bridge/workspaces` → `201`
 
@@ -211,6 +221,38 @@ delete the whole workspace) or `409 LAST_ADMIN`, then calls
 `deleteUserFromWorkspace` mutation's own path: records/views/connected accounts
 pass to a successor, the member and membership are removed, and the user is
 soft-deleted if this was their last workspace. `{ "removed": true }`.
+Just before that call the member's sessions in this workspace are revoked
+(`UserSessionService.revokeAllSessionsForUser`): session rows cascade-delete
+with the membership and would otherwise leave their cached tokens behind. A
+failure there is logged and does not stop the removal; access ends anyway,
+since every request checks live membership.
+
+### `POST /wschat-bridge/workspaces/:workspaceId/members/reset-two-factor` → `200`
+
+Body: `{ email }`. Deletes the member's two-factor methods in this workspace
+and revokes their backup codes, the same writes as Twenty's own "remove
+two-factor method". `{ "reset": true }` when a method existed, `false` when
+there was none or the person is not a member. The service user is refused
+(`409 SERVICE_USER`).
+
+### `GET /wschat-bridge/workspaces/:workspaceId/api-keys` → `200`
+
+Active (not revoked) keys holding the API role:
+`[{ "id", "name", "expiresAt", "createdAt" }]` (ISO dates).
+
+### `POST /wschat-bridge/workspaces/:workspaceId/api-keys` → `201`
+
+Body: `{ "name": "1..100, non-blank", "expiresAt"?: "<ISO date in the future>" }`.
+Without `expiresAt` the key gets Twenty's own "Never" (now + 100 years; the
+column cannot be empty). Response `{ "id", "name", "expiresAt", "token" }`:
+the token is returned once, never stored or logged by the bridge, and cannot
+be read again. At most 20 unexpired API-role keys per workspace
+(`409 API_KEY_LIMIT_REACHED`). The API role is created on first use.
+
+### `DELETE /wschat-bridge/workspaces/:workspaceId/api-keys/:apiKeyId` → `200`
+
+Revokes the key (it stays listed in Twenty as revoked). Only API-role keys of
+this workspace; anything else answers `{ "revoked": false }`.
 
 ### `POST /wschat-bridge/workspaces/:workspaceId/enforce` → `200`
 
@@ -218,7 +260,7 @@ Body: `{ "adminRoleLabel"?: string }`. Brings a workspace to the rules above;
 used once for workspaces created before the service user existed and then on
 every full sync as drift repair. Every step checks first, so it is safe to
 repeat after a failure part-way. It never removes members (WSChat does that
-with `DELETE …/members`) and never revokes API keys.
+with `DELETE …/members`).
 
 1. Service user becomes a member with the standard Admin role (repairing a
    half-made membership).
@@ -227,7 +269,11 @@ with `DELETE …/members`) and never revokes API keys.
    step 1, so the last-admin rule is not hit). Humans on any other role than
    company admin or Member are left alone and counted.
 4. Owned settings re-applied where they drifted.
-5. Pending invitations and approved access domains deleted.
+5. API role ensured; every active key that does not hold it is revoked (keys
+   are issued only through the bridge, so such a key is drift).
+6. Pending invitations and approved access domains deleted.
+
+Webhooks and iframe media grants are counted, never changed.
 
 Response:
 
@@ -241,7 +287,10 @@ Response:
   "settingsFixed": ["isPasswordAuthEnabled", "editableProfileFields"],
   "invitationsDeleted": 0,
   "approvedDomainsDeleted": 0,
+  "iframeMediaPermissions": 0,
+  "foreignApiKeysRevoked": 0,
   "activeApiKeys": 0,
+  "webhooks": 0,
   "sso": "not checked"
 }
 ```
@@ -267,6 +316,7 @@ enterprise-licensed files the bridge does not import.
 | 409 | `WORKSPACE_NOT_READY` | Workspace still `PENDING_CREATION` / `ONGOING_CREATION` (PUT, DELETE, PATCH) |
 | 409 | `LAST_ADMIN` | Demoting or removing the last Admin |
 | 409 | `LAST_MEMBER` | Removing the last member |
+| 409 | `API_KEY_LIMIT_REACHED` | 20 unexpired API-role keys already exist |
 | 409 | `SERVICE_USER` | The e-mail is the service user's (create, member upsert/removal, login link) |
 | 409 | `LAST_SERVER_ADMIN` | Removing the instance's last server admin from their last workspace |
 | 409 | `SEAT_LIMIT_REACHED` | Billing seat limit (billing on only) |
@@ -290,3 +340,11 @@ Each mutating call logs one line: workspace id, action, masked e-mail.
   verify-e-mail join path (`verifyEmailAndGetLoginToken`).
 - `AUTH_GOOGLE_ENABLED` / `AUTH_MICROSOFT_ENABLED` off.
 - No enterprise key (SSO and other enterprise features stay off).
+- `OUTBOUND_HTTP_ALLOWED_INTERNAL_HOSTS` empty and never
+  `OUTBOUND_HTTP_SAFE_MODE_ENABLED=false`: webhooks, the HTTP tool and IMAP
+  hosts go through the SSRF-safe client.
+- `NODE_ENV=production`, so `LOGIC_FUNCTION_TYPE` and `CODE_INTERPRETER_TYPE`
+  default to disabled.
+- The `logger` e-mail driver writes full e-mail bodies (login and verification
+  links included) to the server log; use a real driver or treat the log as
+  secret.

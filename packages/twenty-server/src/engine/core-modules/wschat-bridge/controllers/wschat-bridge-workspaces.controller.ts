@@ -34,6 +34,7 @@ import { WschatBridgeServiceUserConfiguredGuard } from 'src/engine/core-modules/
 import { WschatBridgeSecretGuard } from 'src/engine/core-modules/wschat-bridge/guards/wschat-bridge-secret.guard';
 import { WschatBridgeMemberReadService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-member-read.service';
 import { WschatBridgeMemberRemovalService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-member-removal.service';
+import { WschatBridgeMemberTwoFactorService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-member-two-factor.service';
 import { WschatBridgeMemberUpsertService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-member-upsert.service';
 import { WschatBridgeWorkspaceEnforcementService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-enforcement.service';
 import { WschatBridgeWorkspaceCreationService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-creation.service';
@@ -60,6 +61,7 @@ export class WschatBridgeWorkspacesController {
     private readonly memberReadService: WschatBridgeMemberReadService,
     private readonly memberUpsertService: WschatBridgeMemberUpsertService,
     private readonly memberRemovalService: WschatBridgeMemberRemovalService,
+    private readonly memberTwoFactorService: WschatBridgeMemberTwoFactorService,
     private readonly workspaceEnforcementService: WschatBridgeWorkspaceEnforcementService,
   ) {}
 
@@ -105,6 +107,16 @@ export class WschatBridgeWorkspacesController {
     @Body() body: WschatBridgeRemoveMemberInput,
   ): Promise<WschatBridgeRemovedMemberDTO> {
     return this.memberRemovalService.removeMember(workspaceId, body.email);
+  }
+
+  // Body is just { email }, the same shape as member removal
+  @Post(':workspaceId/members/reset-two-factor')
+  @HttpCode(200)
+  async resetMemberTwoFactor(
+    @Param('workspaceId', new ParseUUIDPipe()) workspaceId: string,
+    @Body() body: WschatBridgeRemoveMemberInput,
+  ): Promise<{ reset: boolean }> {
+    return this.memberTwoFactorService.resetTwoFactor(workspaceId, body.email);
   }
 
   @Post(':workspaceId/enforce')

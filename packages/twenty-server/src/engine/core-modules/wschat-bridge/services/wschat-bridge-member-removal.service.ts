@@ -2,6 +2,8 @@ import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 
 import { isDefined } from 'twenty-shared/utils';
 
+import { UserSessionService } from 'src/engine/core-modules/user-session/services/user-session.service';
+import { UserSessionRevokedReason } from 'src/engine/core-modules/user-session/types/user-session-revoked-reason.type';
 import { UserWorkspaceService } from 'src/engine/core-modules/user-workspace/user-workspace.service';
 import { UserService } from 'src/engine/core-modules/user/services/user.service';
 import { type WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
@@ -24,6 +26,7 @@ export class WschatBridgeMemberRemovalService {
     private readonly workspaceLookupService: WschatBridgeWorkspaceLookupService,
     private readonly rolesService: WschatBridgeRolesService,
     private readonly serviceUserService: WschatBridgeServiceUserService,
+    private readonly userSessionService: UserSessionService,
   ) {}
 
   async removeMember(
@@ -57,6 +60,8 @@ export class WschatBridgeMemberRemovalService {
       userWorkspaceId: userWorkspace.id,
     });
 
+    await this.revokeSessions({ userId: user.id, workspaceId: workspace.id });
+
     // The deleteUserFromWorkspace mutation's service call: ownership transfer to a successor, workspaceMember and
     // membership removal, caches, and soft-delete of the user when this was their last workspace
     await this.userService.deleteUserWorkspaceAndPotentiallyDeleteUser({
@@ -69,6 +74,28 @@ export class WschatBridgeMemberRemovalService {
     );
 
     return { removed: true };
+  }
+
+  // Before the removal: session rows cascade-delete with the membership, which would leave their cached token
+  // hashes behind. Housekeeping only (the JWT strategy checks live membership), so a failure is logged, not thrown
+  private async revokeSessions({
+    userId,
+    workspaceId,
+  }: {
+    userId: string;
+    workspaceId: string;
+  }): Promise<void> {
+    try {
+      await this.userSessionService.revokeAllSessionsForUser({
+        userId,
+        workspaceId,
+        reason: UserSessionRevokedReason.UserRevoked,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Workspace ${workspaceId}: could not revoke sessions before removal: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   // Upstream suspends and soft-deletes the whole workspace when it removes the only workspaceMember row; both the

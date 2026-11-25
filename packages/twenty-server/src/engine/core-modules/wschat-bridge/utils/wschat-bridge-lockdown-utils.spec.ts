@@ -1,23 +1,39 @@
 import { PermissionFlagType } from 'twenty-shared/constants';
 
+import { WorkspaceDiscoverability } from 'src/engine/core-modules/workspace/types/workspace-discoverability.type';
 import {
-  WSCHAT_BRIDGE_COMPANY_ADMIN_PERMISSION_FLAGS,
-  WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE_SETTINGS,
-  WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE_UNIVERSAL_IDENTIFIER,
-} from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-company-admin-role.constant';
+  WSCHAT_BRIDGE_API_ROLE,
+  WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE,
+} from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-managed-roles.constant';
 import {
   buildBridgeWorkspaceSettingsDrift,
   removeEmailFromEditableProfileFields,
 } from 'src/engine/core-modules/wschat-bridge/utils/build-bridge-workspace-settings-drift.util';
 import {
-  findCompanyAdminRoleSettingsDrift,
-  isCompanyAdminPermissionFlagSetExact,
-} from 'src/engine/core-modules/wschat-bridge/utils/find-company-admin-role-drift.util';
+  findManagedRoleSettingsDrift,
+  isPermissionFlagSetExact,
+} from 'src/engine/core-modules/wschat-bridge/utils/find-managed-role-drift.util';
 import { toBridgeRoleName } from 'src/engine/core-modules/wschat-bridge/utils/to-bridge-role-name.util';
 
-describe('WSCHAT_BRIDGE_COMPANY_ADMIN_PERMISSION_FLAGS', () => {
+const MEMBER_ROLE_ID = '20202020-0000-4000-8000-000000000001';
+
+const LOCKED_DOWN_SETTINGS = {
+  isPasswordAuthEnabled: false,
+  isPublicInviteLinkEnabled: false,
+  isGoogleAuthEnabled: false,
+  isMicrosoftAuthEnabled: false,
+  allowImpersonation: false,
+  isTwoFactorAuthenticationEnforced: false,
+  editableProfileFields: ['firstName'],
+  workspaceDiscoverability: WorkspaceDiscoverability.HIDDEN,
+  defaultRoleId: MEMBER_ROLE_ID,
+};
+
+describe('WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE', () => {
   it('should grant exactly the four allowed settings flags', () => {
-    expect([...WSCHAT_BRIDGE_COMPANY_ADMIN_PERMISSION_FLAGS].sort()).toEqual(
+    expect(
+      [...WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE.permissionFlags].sort(),
+    ).toEqual(
       [
         PermissionFlagType.AI_SETTINGS,
         PermissionFlagType.DATA_MODEL,
@@ -40,53 +56,76 @@ describe('WSCHAT_BRIDGE_COMPANY_ADMIN_PERMISSION_FLAGS', () => {
       PermissionFlagType.APPLICATIONS,
       PermissionFlagType.MARKETPLACE_APPS,
     ]) {
-      expect(WSCHAT_BRIDGE_COMPANY_ADMIN_PERMISSION_FLAGS).not.toContain(
+      expect(WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE.permissionFlags).not.toContain(
         forbiddenFlag,
       );
     }
   });
 });
 
-describe('isCompanyAdminPermissionFlagSetExact', () => {
-  it('should accept the allow-list in any order', () => {
+describe('WSCHAT_BRIDGE_API_ROLE', () => {
+  it('should be an API-key-only role without settings, tools or destroy', () => {
+    expect(WSCHAT_BRIDGE_API_ROLE.permissionFlags).toEqual([]);
+    expect(WSCHAT_BRIDGE_API_ROLE.settings).toMatchObject({
+      canUpdateAllSettings: false,
+      canAccessAllTools: false,
+      canDestroyAllObjectRecords: false,
+      canBeAssignedToUsers: false,
+      canBeAssignedToAgents: false,
+      canBeAssignedToApiKeys: true,
+    });
+  });
+});
+
+describe('isPermissionFlagSetExact', () => {
+  const expectedFlags = WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE.permissionFlags;
+
+  it('should accept the expected flags in any order', () => {
     expect(
-      isCompanyAdminPermissionFlagSetExact(
-        [...WSCHAT_BRIDGE_COMPANY_ADMIN_PERMISSION_FLAGS].reverse(),
-      ),
+      isPermissionFlagSetExact([...expectedFlags].reverse(), expectedFlags),
     ).toBe(true);
   });
 
   it('should report a missing or an extra flag as drift', () => {
     expect(
-      isCompanyAdminPermissionFlagSetExact(
-        WSCHAT_BRIDGE_COMPANY_ADMIN_PERMISSION_FLAGS.slice(1),
-      ),
+      isPermissionFlagSetExact(expectedFlags.slice(1), expectedFlags),
     ).toBe(false);
     expect(
-      isCompanyAdminPermissionFlagSetExact([
-        ...WSCHAT_BRIDGE_COMPANY_ADMIN_PERMISSION_FLAGS,
-        PermissionFlagType.WORKSPACE_MEMBERS,
-      ]),
+      isPermissionFlagSetExact(
+        [...expectedFlags, PermissionFlagType.WORKSPACE_MEMBERS],
+        expectedFlags,
+      ),
     ).toBe(false);
+  });
+
+  it('should treat any flag on a role that must have none as drift', () => {
+    expect(isPermissionFlagSetExact([], [])).toBe(true);
+    expect(isPermissionFlagSetExact([PermissionFlagType.ROLES], [])).toBe(
+      false,
+    );
   });
 });
 
-describe('findCompanyAdminRoleSettingsDrift', () => {
+describe('findManagedRoleSettingsDrift', () => {
   it('should find nothing on a role with the expected switches', () => {
     expect(
-      findCompanyAdminRoleSettingsDrift({
-        ...WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE_SETTINGS,
-      }),
+      findManagedRoleSettingsDrift(
+        { ...WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE.settings },
+        WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE.settings,
+      ),
     ).toEqual([]);
   });
 
   it('should name the switches that drifted', () => {
     expect(
-      findCompanyAdminRoleSettingsDrift({
-        ...WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE_SETTINGS,
-        canUpdateAllSettings: true,
-        canBeAssignedToApiKeys: true,
-      }),
+      findManagedRoleSettingsDrift(
+        {
+          ...WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE.settings,
+          canUpdateAllSettings: true,
+          canBeAssignedToApiKeys: true,
+        },
+        WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE.settings,
+      ),
     ).toEqual(['canUpdateAllSettings', 'canBeAssignedToApiKeys']);
   });
 });
@@ -111,33 +150,27 @@ describe('removeEmailFromEditableProfileFields', () => {
 describe('buildBridgeWorkspaceSettingsDrift', () => {
   it('should list every owned setting of a fresh workspace', () => {
     expect(
-      buildBridgeWorkspaceSettingsDrift({
-        isPasswordAuthEnabled: true,
-        isPublicInviteLinkEnabled: true,
-        isGoogleAuthEnabled: true,
-        isMicrosoftAuthEnabled: true,
-        allowImpersonation: true,
-        editableProfileFields: ['email', 'firstName'],
-      }),
-    ).toEqual({
-      isPasswordAuthEnabled: false,
-      isPublicInviteLinkEnabled: false,
-      isGoogleAuthEnabled: false,
-      isMicrosoftAuthEnabled: false,
-      allowImpersonation: false,
-      editableProfileFields: ['firstName'],
-    });
+      buildBridgeWorkspaceSettingsDrift(
+        {
+          isPasswordAuthEnabled: true,
+          isPublicInviteLinkEnabled: true,
+          isGoogleAuthEnabled: true,
+          isMicrosoftAuthEnabled: true,
+          allowImpersonation: true,
+          isTwoFactorAuthenticationEnforced: true,
+          editableProfileFields: ['email', 'firstName'],
+          workspaceDiscoverability: WorkspaceDiscoverability.PUBLIC,
+          defaultRoleId: 'another-role-id',
+        },
+        { memberRoleId: MEMBER_ROLE_ID },
+      ),
+    ).toEqual(LOCKED_DOWN_SETTINGS);
   });
 
   it('should be empty for a workspace already locked down', () => {
     expect(
-      buildBridgeWorkspaceSettingsDrift({
-        isPasswordAuthEnabled: false,
-        isPublicInviteLinkEnabled: false,
-        isGoogleAuthEnabled: false,
-        isMicrosoftAuthEnabled: false,
-        allowImpersonation: false,
-        editableProfileFields: ['firstName'],
+      buildBridgeWorkspaceSettingsDrift(LOCKED_DOWN_SETTINGS, {
+        memberRoleId: MEMBER_ROLE_ID,
       }),
     ).toEqual({});
   });
@@ -148,7 +181,7 @@ describe('toBridgeRoleName for the company-admin role', () => {
     expect(
       toBridgeRoleName({
         universalIdentifier:
-          WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE_UNIVERSAL_IDENTIFIER,
+          WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE.universalIdentifier,
         label: 'Администратор компании',
       }),
     ).toBe('admin');

@@ -15,7 +15,8 @@ import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.ent
 import { WSCHAT_BRIDGE_ERROR_CODES } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-error-codes.constant';
 import { type WschatBridgeCreateWorkspaceInput } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-create-workspace.input';
 import { type WschatBridgeCreatedWorkspaceDTO } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-workspace.dto';
-import { WschatBridgeCompanyAdminRoleService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-company-admin-role.service';
+import { WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-managed-roles.constant';
+import { WschatBridgeManagedRoleService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-managed-role.service';
 import { WschatBridgeMemberUpsertService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-member-upsert.service';
 import { WschatBridgeOnboardingService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-onboarding.service';
 import { WschatBridgeSubdomainService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-subdomain.service';
@@ -57,7 +58,7 @@ export class WschatBridgeWorkspaceCreationService {
     private readonly subdomainService: WschatBridgeSubdomainService,
     private readonly serviceUserService: WschatBridgeServiceUserService,
     private readonly workspaceSettingsService: WschatBridgeWorkspaceSettingsService,
-    private readonly companyAdminRoleService: WschatBridgeCompanyAdminRoleService,
+    private readonly managedRoleService: WschatBridgeManagedRoleService,
     private readonly memberUpsertService: WschatBridgeMemberUpsertService,
     private readonly onboardingService: WschatBridgeOnboardingService,
     private readonly workspaceLookupService: WschatBridgeWorkspaceLookupService,
@@ -247,8 +248,9 @@ export class WschatBridgeWorkspaceCreationService {
       workspaceId: workspace.id,
     });
 
-    await this.companyAdminRoleService.ensure({
+    await this.managedRoleService.ensure({
       workspaceId: workspace.id,
+      role: WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE,
       label: input.adminRoleLabel?.trim(),
     });
 

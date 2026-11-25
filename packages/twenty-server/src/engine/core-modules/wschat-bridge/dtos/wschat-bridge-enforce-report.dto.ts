@@ -18,8 +18,17 @@ export class WschatBridgeEnforceReportDTO {
 
   approvedDomainsDeleted: number;
 
-  // Reported only; nothing is revoked
+  // Stored iframe camera/microphone grants; reported only, upstream has no service method to clear them
+  iframeMediaPermissions: number;
+
+  // Active keys without the API role, revoked: keys are issued only through the bridge
+  foreignApiKeysRevoked: number;
+
+  // Active keys holding the API role
   activeApiKeys: number;
+
+  // Reported only; nothing is deleted
+  webhooks: number;
 
   // SSO lives in enterprise-licensed files the bridge does not import
   sso: 'not checked';

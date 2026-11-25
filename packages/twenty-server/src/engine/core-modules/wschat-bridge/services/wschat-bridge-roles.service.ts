@@ -5,7 +5,8 @@ import { isDefined } from 'twenty-shared/utils';
 
 import { WSCHAT_BRIDGE_ERROR_CODES } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-error-codes.constant';
 import { type WschatBridgeMemberRole } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-member-roles.constant';
-import { WschatBridgeCompanyAdminRoleService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-company-admin-role.service';
+import { WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-managed-roles.constant';
+import { WschatBridgeManagedRoleService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-managed-role.service';
 import { wschatBridgeHttpException } from 'src/engine/core-modules/wschat-bridge/utils/wschat-bridge-http-exception.util';
 import { RoleService } from 'src/engine/metadata-modules/role/role.service';
 import { RoleAssignmentWriteService } from 'src/engine/permissions/role-assignment/role-assignment-write.service';
@@ -18,7 +19,7 @@ export class WschatBridgeRolesService {
     private readonly roleService: RoleService,
     private readonly rolePermissionsService: RolePermissionsService,
     private readonly roleAssignmentWriteService: RoleAssignmentWriteService,
-    private readonly companyAdminRoleService: WschatBridgeCompanyAdminRoleService,
+    private readonly managedRoleService: WschatBridgeManagedRoleService,
   ) {}
 
   // Bridge "admin" is the company-admin role (created on demand); the standard Admin is kept for the service user
@@ -30,13 +31,18 @@ export class WschatBridgeRolesService {
     role: WschatBridgeMemberRole;
   }): Promise<string> {
     if (role === 'admin') {
-      const { roleId } = await this.companyAdminRoleService.ensure({
+      const { roleId } = await this.managedRoleService.ensure({
         workspaceId,
+        role: WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE,
       });
 
       return roleId;
     }
 
+    return this.resolveMemberRoleIdOrThrow(workspaceId);
+  }
+
+  async resolveMemberRoleIdOrThrow(workspaceId: string): Promise<string> {
     return this.resolveStandardRoleIdOrThrow({
       workspaceId,
       universalIdentifier: MEMBER_ROLE_UNIVERSAL_IDENTIFIER,
