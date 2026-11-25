@@ -196,6 +196,54 @@ describe('WSChat SELECT fields and the history flag', () => {
   });
 });
 
+describe('WSChat messenger and company phone fields', () => {
+  it('should add the separate messenger identities to person and phones to company', () => {
+    for (const name of [
+      'wschatTelegram',
+      'wschatTelegramId',
+      'wschatInstagram',
+      'wschatWhatsappId',
+      'wschatMessengers',
+      'wschatPhones',
+    ]) {
+      const definition = findField(PERSON, name);
+
+      expect(definition.type).toBe(FieldMetadataType.TEXT);
+      expect(definition.isUnique).toBe(false);
+    }
+    expect(
+      findField(STANDARD_OBJECTS.company.universalIdentifier, 'wschatPhones')
+        .type,
+    ).toBe(FieldMetadataType.TEXT);
+  });
+
+  it('should plan only the newly defined fields when the rest of the model exists', () => {
+    const newNames = [
+      'wschatTelegram',
+      'wschatTelegramId',
+      'wschatInstagram',
+      'wschatWhatsappId',
+    ];
+    const plan = planBridgeFields({
+      definitions: WSCHAT_BRIDGE_FIELDS.filter(
+        ({ objectUniversalIdentifier }) => objectUniversalIdentifier === PERSON,
+      ),
+      objectIdByUniversalIdentifier: OBJECT_IDS,
+      objectNameByUniversalIdentifier: OBJECT_NAMES,
+      existingFields: WSCHAT_BRIDGE_FIELDS.filter(
+        ({ objectUniversalIdentifier, name }) =>
+          objectUniversalIdentifier === PERSON && !newNames.includes(name),
+      ).map((definition) => buildExistingField(definition)),
+    });
+
+    expect(plan.toCreate.map(({ reportName }) => reportName)).toEqual(
+      newNames.map((name) => `person.${name}`),
+    );
+    expect(plan.conflicts).toEqual([]);
+    expect(plan.toUpdate).toEqual([]);
+  });
+});
+
 describe('planBridgeObjects', () => {
   it('should create missing objects and report a foreign one with our name', () => {
     const plan = planBridgeObjects({

@@ -388,7 +388,7 @@ rejects any other value. Channel values (`ch`): `WHATSAPP`, `WHATSAPP_BUSINESS`,
 
 | Object | Field | Type | Values |
 | --- | --- | --- | --- |
-| person | `wschatContactId` (unique), `wschatMessengers`, `wschatPhones` | TEXT | |
+| person | `wschatContactId` (unique), `wschatMessengers` (all messengers in one readable line), `wschatPhones` (phones exactly as WSChat has them), `wschatTelegram` (@username), `wschatTelegramId`, `wschatInstagram`, `wschatWhatsappId` (WhatsApp's identifier when the number is hidden) | TEXT | |
 | person | `wschatSource`, `wschatLastChannel` | SELECT | ch |
 | person | `wschatUrl` | LINKS | |
 | person | `wschatLastContactAt` | DATE_TIME | |
@@ -401,7 +401,7 @@ rejects any other value. Channel values (`ch`): `WHATSAPP`, `WHATSAPP_BUSINESS`,
 | task | `wschatAuthor` | SELECT | `EMPLOYEE`, `ROBOT`, `OTHER` |
 | task | `wschatUrl` | LINKS | |
 | task | `wschatImported` | BOOLEAN, default `false`, not null | |
-| company | `wschatContactId` (unique) | TEXT | |
+| company | `wschatContactId` (unique), `wschatPhones` | TEXT | |
 | company | `wschatUrl` | LINKS | |
 | company | `wschatImported` | BOOLEAN, default `false`, not null | |
 | wschatConversation | `wschatConversationId` (unique), `outcomeNote` | TEXT | |
@@ -569,12 +569,38 @@ WSChat reads and writes with its service key (`Authorization: Bearer <token>`).
   `wschatLeadId` / `wschatTaskId` / `wschatConversationId` / `wschatCallId`
   (`get-conflicting-fields.util.ts`). REST paths use the object's plural name
   (`rest-api-base.handler.ts`, `idByNamePlural`).
-- A soft-deleted record still holds its unique value (the unique index does
-  not exclude deleted rows, `generate-index-for-flat-field-metadata.util.ts`):
-  restore it with `PATCH /rest/people/<id>/restore` before sending it again.
-- Merge duplicates: `PATCH /rest/people/merge`.
-- Changes made in the CRM: poll `GET /rest/people` ordered and filtered by
-  `updatedAt`; deleted ones by `deletedAt`.
+- Upsert and the trash: matching also looks at soft-deleted records
+  (`common-create-many-query-runner.service.ts`, `.withDeleted()`), because our
+  unique indexes do not exclude deleted rows (`indexWhereClause: null`,
+  `generate-index-for-flat-field-metadata.util.ts`; only a single-field index
+  with `"deletedAt" IS NULL` would make matching skip them,
+  `get-conflicting-fields.util.ts`). A matched record is updated with
+  `deletedAt: null`: re-sending a record that someone put in the trash
+  brings it back. WSChat must check `deletedAt` first if a deletion in the CRM
+  should stick.
+- Deleting (any object): `DELETE /rest/<plural>/<id>?soft_delete=true` moves
+  the record to the trash; `DELETE /rest/<plural>?soft_delete=true&filter=…`
+  does the same for many. Without `soft_delete=true` the request is a
+  DESTROY (permanent), which the API role is refused with
+  `403 PERMISSION_DENIED` (`rest-api-core.service.ts`, `delete`;
+  `parse-soft-delete-rest-request.util.ts`: only the exact value `true`
+  counts).
+- Restore from the trash: `PATCH /rest/<plural>/<id>/restore`, or
+  `PATCH /rest/<plural>/restore?filter=…` for many
+  (`parse-core-path.utils.ts`, `rest-api-core.service.ts`, `restore`).
+- Merge duplicates: `PATCH /rest/<plural>/merge` with body
+  `{ "ids": ["<id>", ...], "conflictPriorityIndex": 0, "dryRun": false }`;
+  the record at `conflictPriorityIndex` wins field conflicts, the others are
+  merged into it and deleted (`rest-api-merge-many.handler.ts`,
+  `common-merge-many-query-runner.service.ts`).
+- Changes made in the CRM: `GET /rest/people?filter=updatedAt[gte]:"<ISO date>"&order_by=updatedAt[AscNullsFirst]`
+  (filter syntax `field[op]:value`, conjunctions `and(...)`, `or(...)`,
+  `not(...)`: `filter-parser-utils/`; order syntax `field[AscNullsFirst|AscNullsLast|DescNullsFirst|DescNullsLast]`:
+  `parse-order-by-rest-request-common.util.ts`). Trashed records are
+  returned only when the filter mentions `deletedAt`, e.g.
+  `filter=deletedAt[gte]:"<ISO date>"` or `deletedAt[is]:NOT_NULL`
+  (`common-query.parser.ts`, `applyDeletedAtToBuilder`; `is` takes `NULL` or
+  `NOT_NULL`).
 - Author stamp: records written by the key get
   `createdBy`/`updatedBy = { source: "API", name: "WSChat", workspaceMemberId: null }`
   (`build-created-by-from-api-key.util.ts`).
