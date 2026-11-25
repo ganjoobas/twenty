@@ -1,0 +1,1 @@
+export const WSCHAT_BRIDGE_MIN_SECRET_LENGTH = 32;

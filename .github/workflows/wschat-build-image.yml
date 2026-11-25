@@ -1,0 +1,110 @@
+name: WSChat build image
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'wschat-v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wschat-build-image
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
+
+env:
+  # Upstream release this fork is based on; APP_VERSION must stay valid semver for the admin panel
+  APP_VERSION: 2.62.0
+  # GitHub rejects release assets of 2 GiB or more
+  MAX_ASSET_BYTES: 2000000000
+
+jobs:
+  build-image:
+    timeout-minutes: 120
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free disk space
+        run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet
+
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Configure Docker Hub mirror
+        run: |
+          echo '{"registry-mirrors":["https://mirror.gcr.io"]}' | sudo tee /etc/docker/daemon.json
+          sudo systemctl restart docker
+
+      - name: Compute image tag
+        id: meta
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [[ "$REF_TYPE" == tag ]]; then
+            version="$REF_NAME"
+          else
+            version="$(git rev-parse --short=12 HEAD)"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "image=twenty-wschat:$version" >> "$GITHUB_OUTPUT"
+          echo "archive=twenty-wschat-$version.tar.gz" >> "$GITHUB_OUTPUT"
+
+      - name: Build image
+        env:
+          IMAGE: ${{ steps.meta.outputs.image }}
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --target twenty \
+            --build-arg APP_VERSION="$APP_VERSION" \
+            -f packages/twenty-docker/twenty/Dockerfile \
+            -t "$IMAGE" \
+            --load \
+            .
+
+      - name: Save, compress and checksum
+        env:
+          IMAGE: ${{ steps.meta.outputs.image }}
+          ARCHIVE: ${{ steps.meta.outputs.archive }}
+        run: |
+          mkdir -p dist-image
+          cd dist-image
+          docker save "$IMAGE" | gzip -6 > "$ARCHIVE"
+          docker image rm "$IMAGE"
+          size=$(stat -c %s "$ARCHIVE")
+          echo "Archive size: $size bytes"
+          if (( size >= MAX_ASSET_BYTES )); then
+            split -b 1900M -d -a 2 "$ARCHIVE" "$ARCHIVE.part-"
+            sha256sum "$ARCHIVE" "$ARCHIVE".part-* > "$ARCHIVE.sha256"
+            rm "$ARCHIVE"
+          else
+            sha256sum "$ARCHIVE" > "$ARCHIVE.sha256"
+          fi
+          ls -l
+
+      - name: Publish release assets
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          IMAGE: ${{ steps.meta.outputs.image }}
+        run: |
+          if ! gh release view "$TAG" > /dev/null 2>&1; then
+            gh release create "$TAG" --verify-tag --title "$TAG" \
+              --notes "Docker image $IMAGE (linux/amd64). Load with: gunzip -c <archive> | docker load"
+          fi
+          gh release upload "$TAG" dist-image/* --clobber
+
+      - name: Upload workflow artifact
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: twenty-wschat-${{ steps.meta.outputs.version }}
+          path: dist-image/
+          retention-days: 7
+          compression-level: 0

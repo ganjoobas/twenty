@@ -72,6 +72,7 @@ import { UserModule } from 'src/engine/core-modules/user/user.module';
 import { WorkflowApiModule } from 'src/engine/core-modules/workflow/workflow-api.module';
 import { WorkspaceInvitationModule } from 'src/engine/core-modules/workspace-invitation/workspace-invitation.module';
 import { WorkspaceModule } from 'src/engine/core-modules/workspace/workspace.module';
+import { WschatBridgeModule } from 'src/engine/core-modules/wschat-bridge/wschat-bridge.module';
 import { AiBillingModule } from 'src/engine/metadata-modules/ai/ai-billing/ai-billing.module';
 import { AiModelsModule } from 'src/engine/metadata-modules/ai/ai-models/ai-models.module';
 import { PageLayoutModule } from 'src/engine/metadata-modules/page-layout/page-layout.module';
@@ -184,6 +185,7 @@ import { FileApiModule } from './file/file-api.module';
     EventLogsViewerModule,
     PreInstalledAppsModule,
     AppBillingModule,
+    WschatBridgeModule,
   ],
   providers: [
     {

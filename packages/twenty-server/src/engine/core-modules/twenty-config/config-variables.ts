@@ -1885,6 +1885,18 @@ export class ConfigVariables {
     group: ConfigVariablesGroup.SERVER_CONFIG,
     isSensitive: true,
     description:
+      'Shared secret for the WSChat bridge endpoints. Empty or shorter than 32 characters disables the bridge.',
+    isEnvOnly: true,
+    type: ConfigVariableType.STRING,
+  })
+  @IsOptional()
+  @IsString()
+  WSCHAT_BRIDGE_SECRET: string = '';
+
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.SERVER_CONFIG,
+    isSensitive: true,
+    description:
       'Verification-only fallback key. During rotation, set this to the previous ENCRYPTION_KEY so rows encrypted with the old key remain decryptable and session cookies signed under it still verify.',
     isEnvOnly: true,
     type: ConfigVariableType.STRING,
