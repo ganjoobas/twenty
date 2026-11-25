@@ -17,6 +17,8 @@ This repository is upstream [Twenty](https://github.com/twentyhq/twenty) at tag
   API keys are issued only through the bridge, with a records-only role.
   The bridge also adds WSChat's fields and objects (conversations, calls) to
   each workspace and issues WSChat its own records-API key.
+  Closed lists are SELECT fields for workflow filters; outcome and task-type
+  options are kept per company through `PUT …/dictionaries`.
 - `auth/constants/max-workspaces-without-organization-key.constant.ts`: the
   number of workspaces allowed without an enterprise key is raised from 5 to
   10000, because every WSChat client company gets its own workspace.

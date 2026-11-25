@@ -157,7 +157,26 @@ export class WschatBridgeDataModelService {
           name: definition.name,
           label: definition.label[labelLocale],
           icon: definition.icon,
-          isNullable: true,
+          ...(isDefined(definition.description)
+            ? { description: definition.description[labelLocale] }
+            : {}),
+          // A field with a default is NOT NULL, so existing rows are backfilled with it and never read null
+          isNullable: !isDefined(definition.defaultValue),
+          ...(isDefined(definition.defaultValue)
+            ? { defaultValue: definition.defaultValue }
+            : {}),
+          ...(isDefined(definition.options)
+            ? {
+                options: definition.options.map(
+                  ({ value, label, color }, position) => ({
+                    value,
+                    label: label[labelLocale],
+                    color,
+                    position,
+                  }),
+                ),
+              }
+            : {}),
           isUIEditable: false,
           isLabelSyncedWithName: false,
           ...(definition.type === FieldMetadataType.RELATION

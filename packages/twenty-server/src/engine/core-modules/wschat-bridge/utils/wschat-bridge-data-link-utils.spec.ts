@@ -6,8 +6,10 @@ import {
   WSCHAT_BRIDGE_CONVERSATION_OBJECT,
   WSCHAT_BRIDGE_FIELDS,
   WSCHAT_BRIDGE_OBJECTS,
+  WSCHAT_BRIDGE_PLACEHOLDER_OPTION,
   type WschatBridgeFieldDefinition,
 } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-data-model.constant';
+import { WSCHAT_BRIDGE_OPTION_KEY_PATTERN } from 'src/engine/core-modules/wschat-bridge/utils/plan-bridge-dictionary-options.util';
 import { isReservedApiKeyName } from 'src/engine/core-modules/wschat-bridge/utils/is-reserved-api-key-name.util';
 import {
   computeBridgeReverseFieldName,
@@ -121,6 +123,76 @@ describe('WSChat data model definitions', () => {
     );
 
     expect(new Set(reverseKeys).size).toBe(reverseKeys.length);
+  });
+});
+
+describe('WSChat SELECT fields and the history flag', () => {
+  it('should give every SELECT valid, distinct option values and no other type any options', () => {
+    for (const definition of WSCHAT_BRIDGE_FIELDS) {
+      if (definition.type !== FieldMetadataType.SELECT) {
+        expect(definition.options).toBeUndefined();
+        continue;
+      }
+
+      const values = (definition.options ?? []).map(({ value }) => value);
+
+      expect(values.length).toBeGreaterThan(0);
+      expect(new Set(values).size).toBe(values.length);
+      for (const value of values) {
+        expect(value).toMatch(WSCHAT_BRIDGE_OPTION_KEY_PATTERN);
+      }
+    }
+  });
+
+  it('should keep the four WSChat outcome tones exactly', () => {
+    const outcomeTone = findField(
+      WSCHAT_BRIDGE_CONVERSATION_OBJECT.universalIdentifier,
+      'outcomeTone',
+    );
+
+    expect(outcomeTone.options?.map(({ value }) => value)).toEqual([
+      'SUCCESS',
+      'REFUSAL',
+      'POSTPONED',
+      'JUNK',
+    ]);
+  });
+
+  it('should start managed lists with the placeholder only', () => {
+    const managedFields = WSCHAT_BRIDGE_FIELDS.filter(
+      ({ dictionary }) => dictionary !== undefined,
+    );
+
+    expect(managedFields.map(({ name }) => name)).toEqual([
+      'wschatType',
+      'outcome',
+      'outcome',
+    ]);
+    for (const { options } of managedFields) {
+      expect(options).toEqual([WSCHAT_BRIDGE_PLACEHOLDER_OPTION]);
+    }
+  });
+
+  it('should add wschatImported, false by default, to the five objects WSChat loads from history', () => {
+    const importedFields = WSCHAT_BRIDGE_FIELDS.filter(
+      ({ name }) => name === 'wschatImported',
+    );
+
+    expect(
+      importedFields.map(
+        ({ objectUniversalIdentifier }) => objectUniversalIdentifier,
+      ),
+    ).toEqual([
+      PERSON,
+      STANDARD_OBJECTS.task.universalIdentifier,
+      STANDARD_OBJECTS.company.universalIdentifier,
+      WSCHAT_BRIDGE_CONVERSATION_OBJECT.universalIdentifier,
+      WSCHAT_BRIDGE_CALL_OBJECT.universalIdentifier,
+    ]);
+    for (const definition of importedFields) {
+      expect(definition.type).toBe(FieldMetadataType.BOOLEAN);
+      expect(definition.defaultValue).toBe(false);
+    }
   });
 });
 

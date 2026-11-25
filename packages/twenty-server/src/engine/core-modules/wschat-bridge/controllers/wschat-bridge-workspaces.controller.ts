@@ -17,6 +17,7 @@ import {
 
 import { WschatBridgeCreateWorkspaceInput } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-create-workspace.input';
 import { type WschatBridgeEnforceReportDTO } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-enforce-report.dto';
+import { WschatBridgeDictionariesInput } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-dictionaries.input';
 import { WschatBridgeEnforceInput } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-enforce.input';
 import {
   type WschatBridgeRemovedMemberDTO,
@@ -34,6 +35,10 @@ import { WschatBridgeExceptionFilter } from 'src/engine/core-modules/wschat-brid
 import { WschatBridgeServiceUserConfiguredGuard } from 'src/engine/core-modules/wschat-bridge/guards/wschat-bridge-service-user-configured.guard';
 import { WschatBridgeSecretGuard } from 'src/engine/core-modules/wschat-bridge/guards/wschat-bridge-secret.guard';
 import { WschatBridgeApiKeysService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-api-keys.service';
+import {
+  type WschatBridgeDictionariesResult,
+  WschatBridgeDictionariesService,
+} from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-dictionaries.service';
 import { WschatBridgeMemberReadService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-member-read.service';
 import { WschatBridgeMemberRemovalService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-member-removal.service';
 import { WschatBridgeMemberTwoFactorService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-member-two-factor.service';
@@ -66,6 +71,7 @@ export class WschatBridgeWorkspacesController {
     private readonly memberTwoFactorService: WschatBridgeMemberTwoFactorService,
     private readonly workspaceEnforcementService: WschatBridgeWorkspaceEnforcementService,
     private readonly apiKeysService: WschatBridgeApiKeysService,
+    private readonly dictionariesService: WschatBridgeDictionariesService,
   ) {}
 
   @Post()
@@ -129,6 +135,16 @@ export class WschatBridgeWorkspacesController {
     @Param('workspaceId', new ParseUUIDPipe()) workspaceId: string,
   ): Promise<WschatBridgeServiceKeyDTO> {
     return this.apiKeysService.rotateServiceKey(workspaceId);
+  }
+
+  // Per-company outcome and task-type options; the full list each time, options are never deleted
+  @Put(':workspaceId/dictionaries')
+  @HttpCode(200)
+  async putDictionaries(
+    @Param('workspaceId', new ParseUUIDPipe()) workspaceId: string,
+    @Body() body: WschatBridgeDictionariesInput,
+  ): Promise<WschatBridgeDictionariesResult> {
+    return this.dictionariesService.apply(workspaceId, body);
   }
 
   @Post(':workspaceId/enforce')

@@ -35,6 +35,7 @@ import { WschatBridgeMemberUpsertService } from 'src/engine/core-modules/wschat-
 import { WschatBridgeMembershipService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-membership.service';
 import { WschatBridgeOnboardingService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-onboarding.service';
 import { WschatBridgeRolesService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-roles.service';
+import { WschatBridgeDictionariesService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-dictionaries.service';
 import { WschatBridgeDataModelService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-data-model.service';
 import { WschatBridgeServiceUserService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-service-user.service';
 import { WschatBridgeSubdomainService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-subdomain.service';
@@ -109,6 +110,7 @@ import { WorkspaceCacheModule } from 'src/engine/workspace-cache/workspace-cache
     WschatBridgeApiKeysService,
     WschatBridgeMemberTwoFactorService,
     WschatBridgeDataModelService,
+    WschatBridgeDictionariesService,
     // Not exported by TwoFactorAuthenticationModule; both need only core repositories, so they are provided here
     TwoFactorAuthenticationBackupCodeService,
     provideWorkspaceScopedRepository(TwoFactorAuthenticationMethodEntity),

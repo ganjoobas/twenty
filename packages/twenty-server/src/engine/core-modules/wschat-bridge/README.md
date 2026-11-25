@@ -351,6 +351,8 @@ enterprise-licensed files the bridge does not import.
 | 409 | `ROLE_NOT_FOUND` | The standard Admin/Member role is missing |
 | 409 | `ROLE_NOT_ASSIGNABLE` | Role cannot be assigned to users / not entitled |
 | 409 | `MEMBER_ROLE_MISSING` | Member has no role, so the last-admin check cannot run |
+| 400 | `DICTIONARY_INVALID` | Bad key, label, duplicate key or too many items in a dictionary |
+| 409 | `DATA_MODEL_MISSING` | Dictionary field not created yet; run `enforce` |
 | 500 | `WORKSPACE_CREATION_FAILED` | Creation failed and was rolled back, or clean-up failed (message names the id) |
 | 500 | `DATA_MODEL_FAILED` | `enforce`: lockdown applied, data model not finished; repeat |
 | 500 | `INTERNAL_ERROR` | Anything else; details only in the server log |
@@ -369,26 +371,58 @@ key writes them). Each `*Id` field is unique and is the upsert match key of
 its object. Definitions, universal identifiers and both label sets (`en`,
 `ru`) are in `constants/wschat-bridge-data-model.constant.ts`.
 
-| Object | Field | Type |
-| --- | --- | --- |
-| person | `wschatContactId` (unique), `wschatSource`, `wschatMessengers`, `wschatPhones`, `wschatLastChannel` | TEXT |
-| person | `wschatUrl` | LINKS |
-| person | `wschatLastContactAt` | DATE_TIME |
-| opportunity | `wschatLeadId` (unique), `wschatSource` | TEXT |
-| opportunity | `wschatUrl` | LINKS |
-| task | `wschatTaskId` (unique), `wschatType`, `wschatAuthor` | TEXT |
-| task | `wschatUrl` | LINKS |
-| company | `wschatContactId` (unique) | TEXT |
-| company | `wschatUrl` | LINKS |
-| wschatConversation | `wschatConversationId` (unique), `channel`, `state`, `outcome`, `outcomeTone`, `outcomeNote`, `closedBy` | TEXT |
-| wschatConversation | `startedAt`, `closedAt` | DATE_TIME |
-| wschatConversation | `wschatUrl` | LINKS |
-| wschatConversation | `person` → person, `responsible` → workspaceMember | RELATION (many-to-one) |
-| wschatCall | `wschatCallId` (unique), `direction`, `status`, `outcome`, `outcomeNote`, `summary` | TEXT |
-| wschatCall | `startedAt` | DATE_TIME |
-| wschatCall | `durationSeconds` | NUMBER |
-| wschatCall | `wschatUrl` | LINKS |
-| wschatCall | `person` → person, `answeredBy` → workspaceMember, `conversation` → wschatConversation | RELATION (many-to-one) |
+Closed lists are SELECT fields with fixed option values (labels follow
+`locale`), so workflow filters can only match real values; the records API
+rejects any other value. Channel values (`ch`): `WHATSAPP`, `WHATSAPP_BUSINESS`,
+`TELEGRAM`, `INSTAGRAM`, `WIDGET` (Website / Сайт), `PHONE`, `OTHER`.
+
+| Object | Field | Type | Values |
+| --- | --- | --- | --- |
+| person | `wschatContactId` (unique), `wschatMessengers`, `wschatPhones` | TEXT | |
+| person | `wschatSource`, `wschatLastChannel` | SELECT | ch |
+| person | `wschatUrl` | LINKS | |
+| person | `wschatLastContactAt` | DATE_TIME | |
+| person | `wschatImported` | BOOLEAN, default `false`, not null | |
+| opportunity | `wschatLeadId` (unique) | TEXT | |
+| opportunity | `wschatSource` | SELECT | ch |
+| opportunity | `wschatUrl` | LINKS | |
+| task | `wschatTaskId` (unique) | TEXT | |
+| task | `wschatType` | SELECT, per company | dictionary `taskTypes` |
+| task | `wschatAuthor` | SELECT | `EMPLOYEE`, `ROBOT`, `OTHER` |
+| task | `wschatUrl` | LINKS | |
+| task | `wschatImported` | BOOLEAN, default `false`, not null | |
+| company | `wschatContactId` (unique) | TEXT | |
+| company | `wschatUrl` | LINKS | |
+| company | `wschatImported` | BOOLEAN, default `false`, not null | |
+| wschatConversation | `wschatConversationId` (unique), `outcomeNote` | TEXT | |
+| wschatConversation | `channel` | SELECT | ch |
+| wschatConversation | `state` | SELECT | `OPEN`, `CLOSED` |
+| wschatConversation | `outcome` | SELECT, per company | dictionary `outcomes` |
+| wschatConversation | `outcomeTone` | SELECT | `SUCCESS`, `REFUSAL`, `POSTPONED`, `JUNK` |
+| wschatConversation | `closedBy` | SELECT | `EMPLOYEE`, `ROBOT`, `CLIENT`, `AUTO` |
+| wschatConversation | `lastMessageFrom` | SELECT | `CLIENT`, `EMPLOYEE`, `ROBOT` |
+| wschatConversation | `startedAt`, `closedAt`, `lastMessageAt` | DATE_TIME | |
+| wschatConversation | `isNewClient` | BOOLEAN | |
+| wschatConversation | `wschatUrl` | LINKS | |
+| wschatConversation | `wschatImported` | BOOLEAN, default `false`, not null | |
+| wschatConversation | `person` → person, `responsible` → workspaceMember | RELATION (many-to-one) | |
+| wschatCall | `wschatCallId` (unique), `outcomeNote`, `summary` | TEXT | |
+| wschatCall | `direction` | SELECT | `INBOUND`, `OUTBOUND` |
+| wschatCall | `status` | SELECT | `COMPLETED` (Answered), `MISSED`, `DECLINED`, `FAILED` |
+| wschatCall | `channel` | SELECT | `PHONE`, `WHATSAPP_BUSINESS`, `WHATSAPP`, `TELEGRAM`, `OTHER` |
+| wschatCall | `outcome` | SELECT, per company | dictionary `outcomes` |
+| wschatCall | `startedAt` | DATE_TIME | |
+| wschatCall | `durationSeconds` | NUMBER | |
+| wschatCall | `wschatUrl` | LINKS | |
+| wschatCall | `wschatImported` | BOOLEAN, default `false`, not null | |
+| wschatCall | `person` → person, `answeredBy` → workspaceMember, `conversation` → wschatConversation | RELATION (many-to-one) | |
+
+A SELECT cannot be created without options (`validate-field-metadata-input-options.util.ts`),
+so the per-company fields start with one placeholder option `NOT_SET`
+(Not set / Не задано). It is kept forever and never written by WSChat;
+removing it would only blank records holding it (none). Fixed option lists are
+set at creation; enforce does not rewrite them (a type mismatch is reported
+in `dataModelConflicts`, never altered).
 
 Both custom objects also have Twenty's standard `name` (WSChat writes a short
 title there). Relations add a list on the target object whose name Twenty
@@ -421,6 +455,84 @@ send its records again.
 
 Records access: the API role, Member and company admin have record access to
 all objects (role-level switches), which covers custom objects too.
+
+### `PUT /wschat-bridge/workspaces/:workspaceId/dictionaries` → `200`
+
+```json
+{
+  "outcomes": [{ "key": "SOLD", "label": "Продано", "color": "green" }, { "key": "OLD_REASON", "label": "Старое", "archived": true }],
+  "taskTypes": [{ "key": "CALL_BACK", "label": "Перезвонить" }],
+  "locale": "ru"
+}
+```
+
+Each list is optional and independent; WSChat sends the full current list.
+`outcomes` is applied to both `wschatConversation.outcome` and
+`wschatCall.outcome`, `taskTypes` to `task.wschatType`.
+
+- `key` = option value: UPPER_SNAKE_CASE (`^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$`, no
+  double underscore), at most 63 characters, not `NOT_SET`, unique in the list.
+- `label`: 1..52 characters, no comma (Twenty's option label limit is 63 and the
+  archive suffix must fit). `color`: one of Twenty's tag colours (`red`, `ruby`,
+  `crimson`, `tomato`, `orange`, `amber`, `yellow`, `lime`, `grass`, `green`,
+  `jade`, `mint`, `turquoise`, `cyan`, `sky`, `blue`, `iris`, `violet`,
+  `purple`, `plum`, `pink`, `bronze`, `gold`, `brown`, `gray`); default: the
+  current one, else `gray`. At most 200 items.
+- Missing options are added; a different label or colour is updated;
+  `archived: true` keeps the option (records keep it) and suffixes its label
+  with « (archived)» / « (архив)» (`locale`, default `en`; never twice) and
+  moves it after the live ones. Options absent from the request are kept as
+  they are and counted in `orphanOptions`; options are never deleted
+  (deleting one blanks it on every record:
+  `workspace-schema-enum-manager.service.ts`). Order = request order, archived
+  after, orphans after, `NOT_SET` last.
+- One `updateOneField` (one workspace migration) per field whose options
+  really changed: a changed outcomes list costs 2, task types 1, an unchanged
+  request 0. Changing the set of values rewrites the enum column of that
+  object's table.
+
+Response: `{ "outcomes": { "added", "relabelled", "archived", "orphanOptions", "total" }, "taskTypes": { ... } }`
+(outcomes counted on the conversation field). Errors: `400 DICTIONARY_INVALID`
+(message names the list and the problem), `409 DATA_MODEL_MISSING` (the field
+does not exist yet: run `enforce`).
+
+## Workflows
+
+Everything WSChat does lands in records, so companies build their own Twenty
+workflows on them ("Record is created / updated" triggers on custom objects
+work, also for writes made with an API key; a trigger can watch chosen fields
+and carry a filter). Useful events:
+
+- conversation created (a new dialog; `channel`, `isNewClient`);
+- conversation updated, watching `lastMessageAt` (a new message; `lastMessageFrom`);
+- conversation updated, watching `state`, filter `state = CLOSED` with
+  `outcome` / `outcomeTone` / `closedBy`;
+- call created, filter on `status` / `direction` / `channel`;
+- task created, filter on `wschatAuthor` / `wschatType`; task updated watching `status`;
+- person created.
+
+**History load.** Add the condition `wschatImported = false` to every trigger
+that must not react to history. WSChat sets `wschatImported = true` only on
+records it loads in bulk during the first load of existing data and never
+changes it afterwards. So later live updates of an imported record still carry
+`true`: a workflow that should react to live changes of old records must filter
+on the changed field (e.g. `state`), not on this flag. The field is NOT NULL
+with default `false`, so other records read `false` (existing rows are filled
+when the field is added).
+
+How events are emitted (`twenty-orm/repository/workspace-repository.ts`,
+`twenty-orm/utils/format-twenty-orm-event-to-database-batch-event.util.ts`):
+an upsert that inserts emits `created` + `upserted`; one that updates emits
+`updated` + `upserted`; an update that changes nothing emits no `updated` but
+still emits `upserted`, so build on "created" / "updated", not on "created or
+updated" (upserted), which fires on every repeated sync.
+
+Workflows run with their application's role; records they create are stamped
+`createdBy.source = WORKFLOW` (`record-crud/services/create-record.service.ts`).
+
+Hazards: there is no silent mode, so without the `wschatImported` filter a bulk
+load fires one run per matching record; and a workflow that updates a field its
+own trigger watches re-triggers itself.
 
 ## Records API used by WSChat
 
