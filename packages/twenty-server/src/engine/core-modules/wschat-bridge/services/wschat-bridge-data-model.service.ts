@@ -17,6 +17,7 @@ import {
   type WschatBridgeExistingObject,
   type WschatBridgeFieldsPlan,
 } from 'src/engine/core-modules/wschat-bridge/utils/plan-bridge-data-model.util';
+import { retryWhileSchemaBusy } from 'src/engine/core-modules/wschat-bridge/utils/schema-busy-retry.util';
 import { FieldMetadataService } from 'src/engine/metadata-modules/field-metadata/services/field-metadata.service';
 import { ObjectMetadataService } from 'src/engine/metadata-modules/object-metadata/object-metadata.service';
 import { WorkspaceCacheService } from 'src/engine/workspace-cache/services/workspace-cache.service';
@@ -25,6 +26,8 @@ export type WschatBridgeDataModelResult = {
   dataModelCreated: string[];
   dataModelRepaired: string[];
   dataModelConflicts: string[];
+  // Nothing of the model is missing or blocked after this call
+  dataModelReady: boolean;
 };
 
 type CurrentMetadata = {
@@ -33,7 +36,9 @@ type CurrentMetadata = {
 };
 
 // Objects and fields WSChat writes through the records API; only the bridge can add them (DATA_MODEL).
-// Every write follows a fresh plan of what is missing, so a run that failed part-way is finished by the next one
+// Every write follows a fresh plan of what is missing, so a run that failed part-way is finished by the next one.
+// shouldDeferActions: false (as upstream upgrade commands do) builds indexes inside the call instead of leaving
+// deferred operations that make the next migration fail; updateManyObjects has no such switch, hence the retry
 @Injectable()
 export class WschatBridgeDataModelService {
   private readonly logger = new Logger(WschatBridgeDataModelService.name);
@@ -68,29 +73,36 @@ export class WschatBridgeDataModelService {
 
     // One workspace migration per object (createOneObject also adds its view and navigation item)
     for (const definition of objectsPlan.toCreate) {
-      await this.objectMetadataService.createOneObject({
-        createObjectInput: {
-          universalIdentifier: definition.universalIdentifier,
-          nameSingular: definition.nameSingular,
-          namePlural: definition.namePlural,
-          labelSingular: definition.labelSingular[labelLocale],
-          labelPlural: definition.labelPlural[labelLocale],
-          description: definition.description,
-          icon: definition.icon,
-          isLabelSyncedWithName: false,
-        },
-        workspaceId,
-        ownerFlatApplication: workspaceCustomFlatApplication,
-      });
+      await retryWhileSchemaBusy(() =>
+        this.objectMetadataService.createOneObject({
+          createObjectInput: {
+            universalIdentifier: definition.universalIdentifier,
+            nameSingular: definition.nameSingular,
+            namePlural: definition.namePlural,
+            labelSingular: definition.labelSingular[labelLocale],
+            labelPlural: definition.labelPlural[labelLocale],
+            description: definition.description,
+            icon: definition.icon,
+            isLabelSyncedWithName: false,
+          },
+          workspaceId,
+          ownerFlatApplication: workspaceCustomFlatApplication,
+          shouldDeferActions: false,
+        }),
+      );
     }
 
-    await this.objectMetadataService.updateManyObjects({
-      updateObjectInputs: objectsPlan.toUpdate.map(({ id, update }) => ({
-        id,
-        update,
-      })),
-      workspaceId,
-    });
+    if (objectsPlan.toUpdate.length > 0) {
+      await retryWhileSchemaBusy(() =>
+        this.objectMetadataService.updateManyObjects({
+          updateObjectInputs: objectsPlan.toUpdate.map(({ id, update }) => ({
+            id,
+            update,
+          })),
+          workspaceId,
+        }),
+      );
+    }
 
     const createdFieldNames = await this.createMissingFields({
       workspaceId,
@@ -103,10 +115,13 @@ export class WschatBridgeDataModelService {
     const fieldsPlan = await this.planFields(workspaceId, locale);
 
     for (const { id, update } of fieldsPlan.toUpdate) {
-      await this.fieldMetadataService.updateOneField({
-        updateFieldInput: { id, ...update },
-        workspaceId,
-      });
+      await retryWhileSchemaBusy(() =>
+        this.fieldMetadataService.updateOneField({
+          updateFieldInput: { id, ...update },
+          workspaceId,
+          shouldDeferActions: false,
+        }),
+      );
     }
 
     const result: WschatBridgeDataModelResult = {
@@ -119,6 +134,10 @@ export class WschatBridgeDataModelService {
         ...fieldsPlan.toUpdate.map(({ reportName }) => reportName),
       ],
       dataModelConflicts: [...objectsPlan.conflicts, ...fieldsPlan.conflicts],
+      dataModelReady:
+        objectsPlan.conflicts.length === 0 &&
+        fieldsPlan.toCreate.length === 0 &&
+        fieldsPlan.conflicts.length === 0,
     };
 
     if (result.dataModelConflicts.length > 0) {
@@ -148,57 +167,64 @@ export class WschatBridgeDataModelService {
       return [];
     }
 
-    await this.fieldMetadataService.createManyFields({
-      createFieldInputs: plan.toCreate.map(
-        ({ definition, objectMetadataId, relationTargetObjectMetadataId }) => ({
-          objectMetadataId,
-          universalIdentifier: definition.universalIdentifier,
-          type: definition.type,
-          name: definition.name,
-          label: definition.label[labelLocale],
-          icon: definition.icon,
-          ...(isDefined(definition.description)
-            ? { description: definition.description[labelLocale] }
-            : {}),
-          // A field with a default is NOT NULL, so existing rows are backfilled with it and never read null
-          isNullable: !isDefined(definition.defaultValue),
-          ...(isDefined(definition.defaultValue)
-            ? { defaultValue: definition.defaultValue }
-            : {}),
-          ...(isDefined(definition.options)
-            ? {
-                options: definition.options.map(
-                  ({ value, label, color }, position) => ({
-                    value,
-                    label: label[labelLocale],
-                    color,
-                    position,
-                  }),
-                ),
-              }
-            : {}),
-          isUIEditable: false,
-          isLabelSyncedWithName: false,
-          ...(definition.type === FieldMetadataType.RELATION
-            ? {}
-            : { isUnique: definition.isUnique }),
-          ...(isDefined(definition.relation) &&
-          isDefined(relationTargetObjectMetadataId)
-            ? {
-                relationCreationPayload: {
-                  type: RelationType.MANY_TO_ONE,
-                  targetObjectMetadataId: relationTargetObjectMetadataId,
-                  // English so the reverse list's computed name is the same in every workspace
-                  targetFieldLabel: definition.relation.reverseLabel.en,
-                  targetFieldIcon: definition.relation.reverseIcon,
-                },
-              }
-            : {}),
-        }),
-      ),
-      workspaceId,
-      ownerFlatApplication,
-    });
+    await retryWhileSchemaBusy(() =>
+      this.fieldMetadataService.createManyFields({
+        createFieldInputs: plan.toCreate.map(
+          ({
+            definition,
+            objectMetadataId,
+            relationTargetObjectMetadataId,
+          }) => ({
+            objectMetadataId,
+            universalIdentifier: definition.universalIdentifier,
+            type: definition.type,
+            name: definition.name,
+            label: definition.label[labelLocale],
+            icon: definition.icon,
+            ...(isDefined(definition.description)
+              ? { description: definition.description[labelLocale] }
+              : {}),
+            // A field with a default is NOT NULL, so existing rows are backfilled with it and never read null
+            isNullable: !isDefined(definition.defaultValue),
+            ...(isDefined(definition.defaultValue)
+              ? { defaultValue: definition.defaultValue }
+              : {}),
+            ...(isDefined(definition.options)
+              ? {
+                  options: definition.options.map(
+                    ({ value, label, color }, position) => ({
+                      value,
+                      label: label[labelLocale],
+                      color,
+                      position,
+                    }),
+                  ),
+                }
+              : {}),
+            isUIEditable: false,
+            isLabelSyncedWithName: false,
+            ...(definition.type === FieldMetadataType.RELATION
+              ? {}
+              : { isUnique: definition.isUnique }),
+            ...(isDefined(definition.relation) &&
+            isDefined(relationTargetObjectMetadataId)
+              ? {
+                  relationCreationPayload: {
+                    type: RelationType.MANY_TO_ONE,
+                    targetObjectMetadataId: relationTargetObjectMetadataId,
+                    // English so the reverse list's computed name is the same in every workspace
+                    targetFieldLabel: definition.relation.reverseLabel.en,
+                    targetFieldIcon: definition.relation.reverseIcon,
+                  },
+                }
+              : {}),
+          }),
+        ),
+        workspaceId,
+        ownerFlatApplication,
+        shouldDeferActions: false,
+      }),
+    );
 
     return plan.toCreate.map(({ reportName }) => reportName);
   }

@@ -10,6 +10,11 @@ export class WschatBridgeCreatedWorkspaceDTO {
   url: string;
 }
 
+export class WschatBridgeCreateWorkspaceResultDTO extends WschatBridgeCreatedWorkspaceDTO {
+  // false: the workspace is usable, but the WSChat data model is not complete yet; repeat enforce until true
+  dataModelReady: boolean;
+}
+
 export class WschatBridgeWorkspaceDTO extends WschatBridgeCreatedWorkspaceDTO {
   displayName: string;
 

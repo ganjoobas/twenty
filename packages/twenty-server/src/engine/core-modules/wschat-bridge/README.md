@@ -145,7 +145,7 @@ people or loosen sign-in.
 }
 ```
 
-Response: `{ "workspaceId": "<uuid>", "subdomain": "taxi555", "url": "https://taxi555.<base>/" }`.
+Response: `{ "workspaceId": "<uuid>", "subdomain": "taxi555", "url": "https://taxi555.<base>/", "dataModelReady": true }`.
 
 Order of work:
 
@@ -167,15 +167,19 @@ Order of work:
    `ACTIVE` (with billing on, a `CREATED` workspace is reactivated, otherwise
    the onboarding cleaner would delete it after 7 days).
 5. Owned settings, embedding origins, the service user's onboarding cleared,
-   company-admin role created, the whole WSChat data model created (see "WSChat
-   data model", labels in `locale`).
+   company-admin role created.
 6. The `admin` person is added exactly like `PUT …/members` with role `admin`:
    user reused or created, company-admin role, name/locale/theme, e-mail
    verified, onboarding cleared. They land straight in the app via a login
    link (the login-token exchange looks neither at `isPasswordAuthEnabled` nor
    at `AUTH_PASSWORD_ENABLED`).
+7. Last, and outside the rollback below: the WSChat data model (see "WSChat
+   data model", labels in `locale`). If it cannot be finished (above all a
+   busy schema, see `SCHEMA_BUSY`), the workspace is kept and the response
+   says `"dataModelReady": false`; the caller then repeats `enforce` until it
+   reports `"dataModelReady": true`.
 
-Guarantee: if any step after the workspace row exists fails, the workspace is
+Guarantee: if any of steps 3–6 fails, the workspace is
 hard-deleted (the admin panel's deletion path) so it does not keep the
 subdomain, and the call answers with the original refusal code or
 `WORKSPACE_CREATION_FAILED`. If that deletion fails too, the answer is `500
@@ -292,8 +296,12 @@ with `DELETE …/members`).
 6. Pending invitations and approved access domains deleted.
 7. Last, after every lockdown step: the WSChat data model is completed. When
    it fails, the earlier steps stay applied and the call answers
-   `500 DATA_MODEL_FAILED`; repeating it finishes the model. Without `locale`
-   existing labels are left as they are.
+   `500 DATA_MODEL_FAILED` (or `409 SCHEMA_BUSY`); repeating it finishes the
+   model. Without `locale` existing labels are left as they are.
+
+**Caller's duty:** before writing records or dictionaries into a workspace,
+repeat `enforce` (with a pause of a few seconds, also after `409 SCHEMA_BUSY`)
+until it answers `"dataModelReady": true`.
 
 Webhooks and iframe media grants are counted, never changed.
 
@@ -317,7 +325,8 @@ Response:
   "sso": "not checked",
   "dataModelCreated": ["wschatCall", "person.wschatPhones"],
   "dataModelRepaired": [],
-  "dataModelConflicts": []
+  "dataModelConflicts": [],
+  "dataModelReady": true
 }
 ```
 
@@ -353,6 +362,7 @@ enterprise-licensed files the bridge does not import.
 | 409 | `MEMBER_ROLE_MISSING` | Member has no role, so the last-admin check cannot run |
 | 400 | `DICTIONARY_INVALID` | Bad key, label, duplicate key or too many items in a dictionary |
 | 409 | `DATA_MODEL_MISSING` | Dictionary field not created yet; run `enforce` |
+| 409 | `SCHEMA_BUSY` | The workspace still runs deferred schema operations (index builds) after the bridge waited up to 90 s; repeat later |
 | 500 | `WORKSPACE_CREATION_FAILED` | Creation failed and was rolled back, or clean-up failed (message names the id) |
 | 500 | `DATA_MODEL_FAILED` | `enforce`: lockdown applied, data model not finished; repeat |
 | 500 | `INTERNAL_ERROR` | Anything else; details only in the server log |
@@ -431,6 +441,18 @@ computes from its English label, so it is the same in every workspace:
 `wsChatConversationsResponsible` and `wsChatCallsAnswered` on workspaceMember,
 `wsChatCalls` on wschatConversation. Their labels follow `locale`.
 
+**Busy schema.** A schema-changing migration is refused while the workspace
+still has deferred schema operations (`build_index`, `validate_foreignKey`,
+`rebuild_object`) PENDING or IN_PROGRESS
+(`workspace-migration-runner.service.ts`, `in-flight-deferred-workspace-operations.service.ts`).
+By default upstream defers index builds to a background job, so one migration
+blocked the next. The bridge runs its migrations with
+`shouldDeferActions: false`, as upstream upgrade commands do: indexes are built
+inside the call and leave nothing pending. Where a call has no such switch
+(`updateManyObjects`) or another change is still running, the bridge retries
+with growing pauses (1 s doubling to 10 s, at most 90 s in total) and then
+answers `409 SCHEMA_BUSY`. The same applies to the dictionaries endpoint.
+
 Ensure, step by step (each step re-reads metadata, so a run that stopped
 part-way is finished by the next one):
 
@@ -494,7 +516,7 @@ Each list is optional and independent; WSChat sends the full current list.
 Response: `{ "outcomes": { "added", "relabelled", "archived", "orphanOptions", "total" }, "taskTypes": { ... } }`
 (outcomes counted on the conversation field). Errors: `400 DICTIONARY_INVALID`
 (message names the list and the problem), `409 DATA_MODEL_MISSING` (the field
-does not exist yet: run `enforce`).
+does not exist yet: run `enforce`), `409 SCHEMA_BUSY` (repeat later).
 
 ## Workflows
 

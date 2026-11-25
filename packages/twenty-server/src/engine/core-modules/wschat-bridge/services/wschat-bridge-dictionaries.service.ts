@@ -19,6 +19,7 @@ import {
   type WschatBridgeDictionaryItem,
   type WschatBridgeDictionaryStats,
 } from 'src/engine/core-modules/wschat-bridge/utils/plan-bridge-dictionary-options.util';
+import { retryWhileSchemaBusy } from 'src/engine/core-modules/wschat-bridge/utils/schema-busy-retry.util';
 import { wschatBridgeHttpException } from 'src/engine/core-modules/wschat-bridge/utils/wschat-bridge-http-exception.util';
 import { FieldMetadataService } from 'src/engine/metadata-modules/field-metadata/services/field-metadata.service';
 import { resolveFlatFieldMetadataOptions } from 'src/engine/metadata-modules/flat-field-metadata-option/utils/resolve-flat-field-metadata-options.util';
@@ -151,10 +152,14 @@ export class WschatBridgeDictionariesService {
         continue;
       }
 
-      await this.fieldMetadataService.updateOneField({
-        updateFieldInput: { id: field.id, options },
-        workspaceId,
-      });
+      // Inline like the data model, so the next field's update is not refused for running deferred operations
+      await retryWhileSchemaBusy(() =>
+        this.fieldMetadataService.updateOneField({
+          updateFieldInput: { id: field.id, options },
+          workspaceId,
+          shouldDeferActions: false,
+        }),
+      );
       migrationCount++;
     }
 

@@ -44,4 +44,7 @@ export class WschatBridgeEnforceReportDTO {
 
   // Same name but not ours or another shape, or its object is missing: left untouched
   dataModelConflicts: string[];
+
+  // Nothing of the model is missing or blocked after this call; repeat enforce until true before writing records
+  dataModelReady: boolean;
 }

@@ -26,6 +26,7 @@ import { WschatBridgeServiceUserService } from 'src/engine/core-modules/wschat-b
 import { WschatBridgeWorkspaceLookupService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-lookup.service';
 import { WschatBridgeWorkspaceSettingsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-settings.service';
 import { WebhookService } from 'src/engine/metadata-modules/webhook/webhook.service';
+import { isSchemaBusyError } from 'src/engine/core-modules/wschat-bridge/utils/schema-busy-retry.util';
 import { wschatBridgeHttpException } from 'src/engine/core-modules/wschat-bridge/utils/wschat-bridge-http-exception.util';
 import { RoleAssignmentWriteService } from 'src/engine/permissions/role-assignment/role-assignment-write.service';
 import { RolePermissionsService } from 'src/engine/permissions/role-permissions.service';
@@ -128,6 +129,11 @@ export class WschatBridgeWorkspaceEnforcementService {
       this.logger.error(
         `Workspace ${workspaceId}: lockdown applied, data model failed: ${error instanceof Error ? error.message : String(error)}`,
       );
+
+      // Still busy after the bounded wait: the caller repeats later (SCHEMA_BUSY), it is not a failure of the model
+      if (isSchemaBusyError(error)) {
+        throw error;
+      }
 
       throw wschatBridgeHttpException(
         HttpStatus.INTERNAL_SERVER_ERROR,

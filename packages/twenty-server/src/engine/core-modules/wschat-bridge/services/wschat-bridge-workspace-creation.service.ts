@@ -14,12 +14,13 @@ import { WorkspaceService } from 'src/engine/core-modules/workspace/services/wor
 import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { WSCHAT_BRIDGE_ERROR_CODES } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-error-codes.constant';
 import { type WschatBridgeCreateWorkspaceInput } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-create-workspace.input';
-import { type WschatBridgeCreatedWorkspaceDTO } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-workspace.dto';
+import { type WschatBridgeCreateWorkspaceResultDTO } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-workspace.dto';
 import { WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-managed-roles.constant';
 import { WschatBridgeManagedRoleService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-managed-role.service';
 import { WschatBridgeMemberUpsertService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-member-upsert.service';
 import { WschatBridgeOnboardingService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-onboarding.service';
 import { WschatBridgeSubdomainService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-subdomain.service';
+import { type WschatBridgeLocale } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-data-model.constant';
 import { WschatBridgeDataModelService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-data-model.service';
 import { WschatBridgeServiceUserService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-service-user.service';
 import { WschatBridgeWorkspaceLookupService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-lookup.service';
@@ -68,7 +69,7 @@ export class WschatBridgeWorkspaceCreationService {
 
   async createWorkspace(
     input: WschatBridgeCreateWorkspaceInput,
-  ): Promise<WschatBridgeCreatedWorkspaceDTO> {
+  ): Promise<WschatBridgeCreateWorkspaceResultDTO> {
     const displayName = input.displayName.trim();
     const subdomain = input.subdomain.trim();
 
@@ -109,15 +110,43 @@ export class WschatBridgeWorkspaceCreationService {
       pendingWorkspace.id,
     );
 
+    const dataModelReady = await this.tryEnsureDataModel(
+      workspace.id,
+      input.locale ?? 'en',
+    );
+
     this.logger.log(
-      `Workspace ${workspace.id}: created (subdomain ${workspace.subdomain}, status ${workspace.activationStatus}), admin ${maskEmail(input.admin.email)}`,
+      `Workspace ${workspace.id}: created (subdomain ${workspace.subdomain}, status ${workspace.activationStatus}, data model ${dataModelReady ? 'ready' : 'pending'}), admin ${maskEmail(input.admin.email)}`,
     );
 
     return {
       workspaceId: workspace.id,
       subdomain: workspace.subdomain,
       url: this.workspaceLookupService.buildUrl(workspace),
+      dataModelReady,
     };
+  }
+
+  // Outside the rollback on purpose: the workspace, its lockdown and its admin are complete and usable, so a data
+  // model problem (a busy schema above all) must never delete it; enforce finishes the model later
+  private async tryEnsureDataModel(
+    workspaceId: string,
+    locale: WschatBridgeLocale,
+  ): Promise<boolean> {
+    try {
+      const { dataModelReady } = await this.dataModelService.ensure({
+        workspaceId,
+        locale,
+      });
+
+      return dataModelReady;
+    } catch (error) {
+      this.logger.warn(
+        `Workspace ${workspaceId}: data model not finished at creation, enforce will finish it: ${describeError(error)}`,
+      );
+
+      return false;
+    }
   }
 
   // Mirrors SignInUpService.isSignUpEnabled (a first workspace is always allowed) so the caller gets its own code
@@ -254,13 +283,6 @@ export class WschatBridgeWorkspaceCreationService {
       workspaceId: workspace.id,
       role: WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE,
       label: input.adminRoleLabel?.trim(),
-    });
-
-    // The whole WSChat data model (2 object + 1 field migrations, more with locale ru); a failure here rolls the
-    // creation back like any other step
-    await this.dataModelService.ensure({
-      workspaceId: workspace.id,
-      locale: input.locale ?? 'en',
     });
 
     // The company's own admin joins like any member WSChat adds later

@@ -9,6 +9,7 @@ import {
   WorkspaceExceptionCode,
 } from 'src/engine/core-modules/workspace/workspace.exception';
 import { WSCHAT_BRIDGE_ERROR_CODES } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-error-codes.constant';
+import { isSchemaBusyError } from 'src/engine/core-modules/wschat-bridge/utils/schema-busy-retry.util';
 import {
   buildWschatBridgeErrorBody,
   type WschatBridgeErrorBody,
@@ -159,6 +160,14 @@ export const mapUpstreamErrorToBridgeError = (
 
   if (error instanceof PermissionsException) {
     return mapPermissionsException(error);
+  }
+
+  if (isSchemaBusyError(error)) {
+    return buildWschatBridgeErrorBody(
+      HttpStatus.CONFLICT,
+      WSCHAT_BRIDGE_ERROR_CODES.SCHEMA_BUSY,
+      'The workspace is still building indexes from an earlier change; repeat the call in a minute',
+    );
   }
 
   if (

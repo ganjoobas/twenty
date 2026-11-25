@@ -27,7 +27,7 @@ import { WschatBridgeRemoveMemberInput } from 'src/engine/core-modules/wschat-br
 import { WschatBridgeUpdateWorkspaceInput } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-update-workspace.input';
 import { WschatBridgeUpsertMemberInput } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-upsert-member.input';
 import {
-  type WschatBridgeCreatedWorkspaceDTO,
+  type WschatBridgeCreateWorkspaceResultDTO,
   type WschatBridgeWorkspaceDTO,
 } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-workspace.dto';
 import { type WschatBridgeServiceKeyDTO } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-service-key.dto';
@@ -78,7 +78,7 @@ export class WschatBridgeWorkspacesController {
   @HttpCode(201)
   async createWorkspace(
     @Body() body: WschatBridgeCreateWorkspaceInput,
-  ): Promise<WschatBridgeCreatedWorkspaceDTO> {
+  ): Promise<WschatBridgeCreateWorkspaceResultDTO> {
     return this.workspaceCreationService.createWorkspace(body);
   }
 
