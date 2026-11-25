@@ -20,6 +20,7 @@ import { WschatBridgeManagedRoleService } from 'src/engine/core-modules/wschat-b
 import { WschatBridgeMemberUpsertService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-member-upsert.service';
 import { WschatBridgeOnboardingService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-onboarding.service';
 import { WschatBridgeSubdomainService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-subdomain.service';
+import { WschatBridgeDataModelService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-data-model.service';
 import { WschatBridgeServiceUserService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-service-user.service';
 import { WschatBridgeWorkspaceLookupService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-lookup.service';
 import { WschatBridgeWorkspaceSettingsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-settings.service';
@@ -61,6 +62,7 @@ export class WschatBridgeWorkspaceCreationService {
     private readonly managedRoleService: WschatBridgeManagedRoleService,
     private readonly memberUpsertService: WschatBridgeMemberUpsertService,
     private readonly onboardingService: WschatBridgeOnboardingService,
+    private readonly dataModelService: WschatBridgeDataModelService,
     private readonly workspaceLookupService: WschatBridgeWorkspaceLookupService,
   ) {}
 
@@ -252,6 +254,13 @@ export class WschatBridgeWorkspaceCreationService {
       workspaceId: workspace.id,
       role: WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE,
       label: input.adminRoleLabel?.trim(),
+    });
+
+    // The whole WSChat data model (2 object + 1 field migrations, more with locale ru); a failure here rolls the
+    // creation back like any other step
+    await this.dataModelService.ensure({
+      workspaceId: workspace.id,
+      locale: input.locale ?? 'en',
     });
 
     // The company's own admin joins like any member WSChat adds later

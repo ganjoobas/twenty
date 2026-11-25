@@ -29,9 +29,11 @@ import {
   type WschatBridgeCreatedWorkspaceDTO,
   type WschatBridgeWorkspaceDTO,
 } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-workspace.dto';
+import { type WschatBridgeServiceKeyDTO } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-service-key.dto';
 import { WschatBridgeExceptionFilter } from 'src/engine/core-modules/wschat-bridge/filters/wschat-bridge-exception.filter';
 import { WschatBridgeServiceUserConfiguredGuard } from 'src/engine/core-modules/wschat-bridge/guards/wschat-bridge-service-user-configured.guard';
 import { WschatBridgeSecretGuard } from 'src/engine/core-modules/wschat-bridge/guards/wschat-bridge-secret.guard';
+import { WschatBridgeApiKeysService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-api-keys.service';
 import { WschatBridgeMemberReadService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-member-read.service';
 import { WschatBridgeMemberRemovalService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-member-removal.service';
 import { WschatBridgeMemberTwoFactorService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-member-two-factor.service';
@@ -63,6 +65,7 @@ export class WschatBridgeWorkspacesController {
     private readonly memberRemovalService: WschatBridgeMemberRemovalService,
     private readonly memberTwoFactorService: WschatBridgeMemberTwoFactorService,
     private readonly workspaceEnforcementService: WschatBridgeWorkspaceEnforcementService,
+    private readonly apiKeysService: WschatBridgeApiKeysService,
   ) {}
 
   @Post()
@@ -119,16 +122,25 @@ export class WschatBridgeWorkspacesController {
     return this.memberTwoFactorService.resetTwoFactor(workspaceId, body.email);
   }
 
+  // WSChat's own records-API key; rotating revokes the previous one
+  @Post(':workspaceId/service-key')
+  @HttpCode(201)
+  async rotateServiceKey(
+    @Param('workspaceId', new ParseUUIDPipe()) workspaceId: string,
+  ): Promise<WschatBridgeServiceKeyDTO> {
+    return this.apiKeysService.rotateServiceKey(workspaceId);
+  }
+
   @Post(':workspaceId/enforce')
   @HttpCode(200)
   async enforceWorkspace(
     @Param('workspaceId', new ParseUUIDPipe()) workspaceId: string,
     @Body() body: WschatBridgeEnforceInput,
   ): Promise<WschatBridgeEnforceReportDTO> {
-    return this.workspaceEnforcementService.enforce(
-      workspaceId,
-      body.adminRoleLabel,
-    );
+    return this.workspaceEnforcementService.enforce(workspaceId, {
+      adminRoleLabel: body.adminRoleLabel,
+      locale: body.locale,
+    });
   }
 
   private async describeWorkspace(

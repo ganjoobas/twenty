@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
 import { MEMBER_ROLE_UNIVERSAL_IDENTIFIER } from 'twenty-shared/constants';
@@ -10,16 +10,23 @@ import { UserWorkspaceEntity } from 'src/engine/core-modules/user-workspace/user
 import { type WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { WorkspaceInvitationService } from 'src/engine/core-modules/workspace-invitation/services/workspace-invitation.service';
 import { WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-managed-roles.constant';
+import { WSCHAT_BRIDGE_ERROR_CODES } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-error-codes.constant';
 import { type WschatBridgeEnforceReportDTO } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-enforce-report.dto';
 import { WschatBridgeApiKeysService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-api-keys.service';
 import { WschatBridgeManagedRoleService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-managed-role.service';
 import { WschatBridgeMembershipService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-membership.service';
 import { WschatBridgeOnboardingService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-onboarding.service';
 import { WschatBridgeRolesService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-roles.service';
+import { type WschatBridgeLocale } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-data-model.constant';
+import {
+  type WschatBridgeDataModelResult,
+  WschatBridgeDataModelService,
+} from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-data-model.service';
 import { WschatBridgeServiceUserService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-service-user.service';
 import { WschatBridgeWorkspaceLookupService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-lookup.service';
 import { WschatBridgeWorkspaceSettingsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-settings.service';
 import { WebhookService } from 'src/engine/metadata-modules/webhook/webhook.service';
+import { wschatBridgeHttpException } from 'src/engine/core-modules/wschat-bridge/utils/wschat-bridge-http-exception.util';
 import { RoleAssignmentWriteService } from 'src/engine/permissions/role-assignment/role-assignment-write.service';
 import { RolePermissionsService } from 'src/engine/permissions/role-permissions.service';
 import { STANDARD_ROLE } from 'src/engine/workspace-manager/twenty-standard-application/constants/standard-role.constant';
@@ -45,13 +52,17 @@ export class WschatBridgeWorkspaceEnforcementService {
     private readonly managedRoleService: WschatBridgeManagedRoleService,
     private readonly apiKeysService: WschatBridgeApiKeysService,
     private readonly webhookService: WebhookService,
+    private readonly dataModelService: WschatBridgeDataModelService,
     private readonly onboardingService: WschatBridgeOnboardingService,
     private readonly workspaceSettingsService: WschatBridgeWorkspaceSettingsService,
   ) {}
 
   async enforce(
     workspaceId: string,
-    adminRoleLabel?: string,
+    {
+      adminRoleLabel,
+      locale,
+    }: { adminRoleLabel?: string; locale?: WschatBridgeLocale },
   ): Promise<WschatBridgeEnforceReportDTO> {
     const workspace =
       await this.workspaceLookupService.findProvisionedOrThrow(workspaceId);
@@ -72,8 +83,15 @@ export class WschatBridgeWorkspaceEnforcementService {
     const { settingsFixed, iframeMediaPermissions } =
       await this.workspaceSettingsService.enforceOwnedSettings(workspace.id);
 
-    const { foreignApiKeysRevoked, activeApiKeys } =
+    const { foreignApiKeysRevoked, activeApiKeys, serviceKeyActive } =
       await this.apiKeysService.enforce(workspace.id);
+
+    const invitationsDeleted = await this.deleteInvitations(workspace);
+    const approvedDomainsDeleted = await this.deleteApprovedDomains(workspace);
+    const webhooks = (await this.webhookService.findAll(workspace.id)).length;
+
+    // Last on purpose: every lockdown step above has already been applied when the data model fails
+    const dataModel = await this.ensureDataModelOrThrow(workspace.id, locale);
 
     const report: WschatBridgeEnforceReportDTO = {
       serviceUserAdded,
@@ -82,13 +100,15 @@ export class WschatBridgeWorkspaceEnforcementService {
       convertedAdmins,
       unexpectedRoles,
       settingsFixed,
-      invitationsDeleted: await this.deleteInvitations(workspace),
-      approvedDomainsDeleted: await this.deleteApprovedDomains(workspace),
+      invitationsDeleted,
+      approvedDomainsDeleted,
       iframeMediaPermissions,
       foreignApiKeysRevoked,
       activeApiKeys,
-      webhooks: (await this.webhookService.findAll(workspace.id)).length,
+      serviceKeyActive,
+      webhooks,
       sso: 'not checked',
+      ...dataModel,
     };
 
     this.logger.log(
@@ -96,6 +116,25 @@ export class WschatBridgeWorkspaceEnforcementService {
     );
 
     return report;
+  }
+
+  private async ensureDataModelOrThrow(
+    workspaceId: string,
+    locale?: WschatBridgeLocale,
+  ): Promise<WschatBridgeDataModelResult> {
+    try {
+      return await this.dataModelService.ensure({ workspaceId, locale });
+    } catch (error) {
+      this.logger.error(
+        `Workspace ${workspaceId}: lockdown applied, data model failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+
+      throw wschatBridgeHttpException(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        WSCHAT_BRIDGE_ERROR_CODES.DATA_MODEL_FAILED,
+        'Lockdown steps were applied; ensuring the WSChat data model failed. Repeat the call to finish it.',
+      );
+    }
   }
 
   // Must hold the standard Admin before any human loses it, so the last-admin rule is never hit

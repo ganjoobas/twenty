@@ -140,6 +140,7 @@ people or loosen sign-in.
   "subdomain": "taxi555",
   "admin": { "email": "boss@taxi555.kg", "firstName": "Aibek", "lastName": "", "locale": "ru-RU", "colorScheme": "Light" },
   "adminRoleLabel": "Администратор компании",
+  "locale": "ru",
   "allowedEmbeddingOrigins": ["https://wschat.org"]
 }
 ```
@@ -166,7 +167,8 @@ Order of work:
    `ACTIVE` (with billing on, a `CREATED` workspace is reactivated, otherwise
    the onboarding cleaner would delete it after 7 days).
 5. Owned settings, embedding origins, the service user's onboarding cleared,
-   company-admin role created.
+   company-admin role created, the whole WSChat data model created (see "WSChat
+   data model", labels in `locale`).
 6. The `admin` person is added exactly like `PUT …/members` with role `admin`:
    user reused or created, company-admin role, name/locale/theme, e-mail
    verified, onboarding cleared. They land straight in the app via a login
@@ -252,11 +254,27 @@ be read again. At most 20 unexpired API-role keys per workspace
 ### `DELETE /wschat-bridge/workspaces/:workspaceId/api-keys/:apiKeyId` → `200`
 
 Revokes the key (it stays listed in Twenty as revoked). Only API-role keys of
-this workspace; anything else answers `{ "revoked": false }`.
+this workspace; anything else answers `{ "revoked": false }`. WSChat's own key
+answers `409 SERVICE_KEY`.
+
+The company-facing key endpoints never show or count WSChat's own key, and
+refuse its name: a company key named `WSChat` (any case, trimmed) answers
+`409 RESERVED_KEY_NAME`.
+
+### `POST /wschat-bridge/workspaces/:workspaceId/service-key` → `201`
+
+WSChat's own key for the records API: API role, name `WSChat` (records it
+writes show `WSChat` as author), 100-year expiry. Response
+`{ "id", "token", "expiresAt" }`; the token is returned once. Each call
+rotates: the new key is created first, then every previous `WSChat` key is
+revoked, so WSChat is never left without a working key (a failed revoke leaves
+an extra valid key that the next rotation removes). `enforce` never revokes
+it, since it holds the API role.
 
 ### `POST /wschat-bridge/workspaces/:workspaceId/enforce` → `200`
 
-Body: `{ "adminRoleLabel"?: string }`. Brings a workspace to the rules above;
+Body: `{ "adminRoleLabel"?: string, "locale"?: "en" | "ru" }`. Brings a
+workspace to the rules above;
 used once for workspaces created before the service user existed and then on
 every full sync as drift repair. Every step checks first, so it is safe to
 repeat after a failure part-way. It never removes members (WSChat does that
@@ -272,6 +290,10 @@ with `DELETE …/members`).
 5. API role ensured; every active key that does not hold it is revoked (keys
    are issued only through the bridge, so such a key is drift).
 6. Pending invitations and approved access domains deleted.
+7. Last, after every lockdown step: the WSChat data model is completed. When
+   it fails, the earlier steps stay applied and the call answers
+   `500 DATA_MODEL_FAILED`; repeating it finishes the model. Without `locale`
+   existing labels are left as they are.
 
 Webhooks and iframe media grants are counted, never changed.
 
@@ -290,8 +312,12 @@ Response:
   "iframeMediaPermissions": 0,
   "foreignApiKeysRevoked": 0,
   "activeApiKeys": 0,
+  "serviceKeyActive": true,
   "webhooks": 0,
-  "sso": "not checked"
+  "sso": "not checked",
+  "dataModelCreated": ["wschatCall", "person.wschatPhones"],
+  "dataModelRepaired": [],
+  "dataModelConflicts": []
 }
 ```
 
@@ -317,6 +343,8 @@ enterprise-licensed files the bridge does not import.
 | 409 | `LAST_ADMIN` | Demoting or removing the last Admin |
 | 409 | `LAST_MEMBER` | Removing the last member |
 | 409 | `API_KEY_LIMIT_REACHED` | 20 unexpired API-role keys already exist |
+| 409 | `SERVICE_KEY` | The key is WSChat's own; rotate it through `service-key` |
+| 409 | `RESERVED_KEY_NAME` | A company key named `WSChat` |
 | 409 | `SERVICE_USER` | The e-mail is the service user's (create, member upsert/removal, login link) |
 | 409 | `LAST_SERVER_ADMIN` | Removing the instance's last server admin from their last workspace |
 | 409 | `SEAT_LIMIT_REACHED` | Billing seat limit (billing on only) |
@@ -324,12 +352,115 @@ enterprise-licensed files the bridge does not import.
 | 409 | `ROLE_NOT_ASSIGNABLE` | Role cannot be assigned to users / not entitled |
 | 409 | `MEMBER_ROLE_MISSING` | Member has no role, so the last-admin check cannot run |
 | 500 | `WORKSPACE_CREATION_FAILED` | Creation failed and was rolled back, or clean-up failed (message names the id) |
+| 500 | `DATA_MODEL_FAILED` | `enforce`: lockdown applied, data model not finished; repeat |
 | 500 | `INTERNAL_ERROR` | Anything else; details only in the server log |
 
 Each mutating call logs one line: workspace id, action, masked e-mail.
 
 `503 SERVICE_USER_NOT_CONFIGURED`: `WSCHAT_BRIDGE_SERVICE_USER_EMAIL` is empty
 (all workspace endpoints, not the login link).
+
+## WSChat data model
+
+Created at workspace creation and completed by `enforce`, all owned by the
+workspace custom application, all fields read-only in the UI
+(`isUIEditable: false`; the records API does not check that flag, so WSChat's
+key writes them). Each `*Id` field is unique and is the upsert match key of
+its object. Definitions, universal identifiers and both label sets (`en`,
+`ru`) are in `constants/wschat-bridge-data-model.constant.ts`.
+
+| Object | Field | Type |
+| --- | --- | --- |
+| person | `wschatContactId` (unique), `wschatSource`, `wschatMessengers`, `wschatPhones`, `wschatLastChannel` | TEXT |
+| person | `wschatUrl` | LINKS |
+| person | `wschatLastContactAt` | DATE_TIME |
+| opportunity | `wschatLeadId` (unique), `wschatSource` | TEXT |
+| opportunity | `wschatUrl` | LINKS |
+| task | `wschatTaskId` (unique), `wschatType`, `wschatAuthor` | TEXT |
+| task | `wschatUrl` | LINKS |
+| company | `wschatContactId` (unique) | TEXT |
+| company | `wschatUrl` | LINKS |
+| wschatConversation | `wschatConversationId` (unique), `channel`, `state`, `outcome`, `outcomeTone`, `outcomeNote`, `closedBy` | TEXT |
+| wschatConversation | `startedAt`, `closedAt` | DATE_TIME |
+| wschatConversation | `wschatUrl` | LINKS |
+| wschatConversation | `person` → person, `responsible` → workspaceMember | RELATION (many-to-one) |
+| wschatCall | `wschatCallId` (unique), `direction`, `status`, `outcome`, `outcomeNote`, `summary` | TEXT |
+| wschatCall | `startedAt` | DATE_TIME |
+| wschatCall | `durationSeconds` | NUMBER |
+| wschatCall | `wschatUrl` | LINKS |
+| wschatCall | `person` → person, `answeredBy` → workspaceMember, `conversation` → wschatConversation | RELATION (many-to-one) |
+
+Both custom objects also have Twenty's standard `name` (WSChat writes a short
+title there). Relations add a list on the target object whose name Twenty
+computes from its English label, so it is the same in every workspace:
+`wsChatConversations` and `wsChatCalls` on person,
+`wsChatConversationsResponsible` and `wsChatCallsAnswered` on workspaceMember,
+`wsChatCalls` on wschatConversation. Their labels follow `locale`.
+
+Ensure, step by step (each step re-reads metadata, so a run that stopped
+part-way is finished by the next one):
+
+1. Each missing custom object: `ObjectMetadataService.createOneObject` (one
+   workspace migration each; it also creates the default view and a left
+   navigation item).
+2. Object labels / reactivation: one `updateManyObjects` call.
+3. All missing fields of all objects: ONE `FieldMetadataService.createManyFields`
+   call (one migration, relations included).
+4. Labels and reactivation of existing fields and of the relation lists: one
+   `updateOneField` per changed field.
+
+A fresh workspace therefore costs 3 migrations in English and 8 in Russian (the
+5 relation lists are created with English labels, to keep their names stable,
+then relabelled). An object or field with our name that is not ours (another
+universal identifier) or has another type/uniqueness is never touched and is
+reported in `dataModelConflicts`; fields of a missing or foreign object are
+reported there too. A company admin with the data-model permission can
+deactivate or delete our fields and objects: a deactivated one is
+reactivated with its data; a deleted one is recreated empty, and WSChat must
+send its records again.
+
+Records access: the API role, Member and company admin have record access to
+all objects (role-level switches), which covers custom objects too.
+
+## Records API used by WSChat
+
+WSChat reads and writes with its service key (`Authorization: Bearer <token>`).
+
+- Upsert: `POST /rest/batch/people?upsert=true` (likewise
+  `/rest/batch/opportunities`, `/rest/batch/tasks`, `/rest/batch/companies`,
+  `/rest/batch/wschatConversations`, `/rest/batch/wschatCalls`). At most 200
+  records per call (`QUERY_MAX_RECORDS`,
+  `common-create-many-query-runner.service.ts`). A record matches an existing
+  one by `id` or by any unique field, so by `wschatContactId` /
+  `wschatLeadId` / `wschatTaskId` / `wschatConversationId` / `wschatCallId`
+  (`get-conflicting-fields.util.ts`). REST paths use the object's plural name
+  (`rest-api-base.handler.ts`, `idByNamePlural`).
+- A soft-deleted record still holds its unique value (the unique index does
+  not exclude deleted rows, `generate-index-for-flat-field-metadata.util.ts`):
+  restore it with `PATCH /rest/people/<id>/restore` before sending it again.
+- Merge duplicates: `PATCH /rest/people/merge`.
+- Changes made in the CRM: poll `GET /rest/people` ordered and filtered by
+  `updatedAt`; deleted ones by `deletedAt`.
+- Author stamp: records written by the key get
+  `createdBy`/`updatedBy = { source: "API", name: "WSChat", workspaceMemberId: null }`
+  (`build-created-by-from-api-key.util.ts`).
+- Relations are written as `<field>Id`: a conversation's `personId`,
+  `responsibleId` (a workspaceMember id), a call's `personId`, `answeredById`,
+  `conversationId`.
+- A task is linked to a person through a `taskTarget` record:
+  `POST /rest/taskTargets` with `{ "taskId", "targetPersonId" }`
+  (also `targetCompanyId`, `targetOpportunityId`). Standard task fields:
+  `title` (TEXT), `bodyV2` (RICH_TEXT: `{ "markdown": "..." }`), `dueAt`
+  (DATE_TIME), `status` (SELECT `TODO` / `IN_PROGRESS` / `DONE`),
+  `assigneeId` (workspaceMember).
+- Standard opportunity fields: `name` (TEXT), `amount` (CURRENCY
+  `{ "amountMicros", "currencyCode" }`), `closeDate` (DATE_TIME), `stage`
+  (SELECT `NEW` / `SCREENING` / `MEETING` / `PROPOSAL` / `CUSTOMER`, default
+  `NEW`), `pointOfContactId` (person), `companyId` (company), `ownerId`
+  (workspaceMember).
+- Rate limits: `API_RATE_LIMITING_SHORT_TTL_IN_MS` / `_SHORT_LIMIT` (default
+  100 per second) and `API_RATE_LIMITING_LONG_TTL_IN_MS` / `_LONG_LIMIT`
+  (default 100 per minute).
 
 ## Server settings this design relies on
 

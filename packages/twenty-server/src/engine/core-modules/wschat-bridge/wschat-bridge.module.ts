@@ -35,6 +35,7 @@ import { WschatBridgeMemberUpsertService } from 'src/engine/core-modules/wschat-
 import { WschatBridgeMembershipService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-membership.service';
 import { WschatBridgeOnboardingService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-onboarding.service';
 import { WschatBridgeRolesService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-roles.service';
+import { WschatBridgeDataModelService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-data-model.service';
 import { WschatBridgeServiceUserService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-service-user.service';
 import { WschatBridgeSubdomainService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-subdomain.service';
 import { WschatBridgeUserService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-user.service';
@@ -45,6 +46,8 @@ import { WschatBridgeWorkspaceSettingsService } from 'src/engine/core-modules/ws
 import { WschatBridgeWorkspaceUpdateService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-update.service';
 import { WschatBridgeService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge.service';
 import { RolePermissionFlagModule } from 'src/engine/metadata-modules/role-permission-flag/role-permission-flag.module';
+import { ObjectMetadataModule } from 'src/engine/metadata-modules/object-metadata/object-metadata.module';
+import { FieldMetadataModule } from 'src/engine/metadata-modules/field-metadata/field-metadata.module';
 import { WebhookModule } from 'src/engine/metadata-modules/webhook/webhook.module';
 import { RoleModule } from 'src/engine/metadata-modules/role/role.module';
 import { PermissionsModule } from 'src/engine/permissions/permissions.module';
@@ -80,6 +83,8 @@ import { WorkspaceCacheModule } from 'src/engine/workspace-cache/workspace-cache
     ApiKeyModule,
     UserSessionModule,
     WebhookModule,
+    FieldMetadataModule,
+    ObjectMetadataModule,
   ],
   providers: [
     WschatBridgeService,
@@ -103,6 +108,7 @@ import { WorkspaceCacheModule } from 'src/engine/workspace-cache/workspace-cache
     WschatBridgeWorkspaceEnforcementService,
     WschatBridgeApiKeysService,
     WschatBridgeMemberTwoFactorService,
+    WschatBridgeDataModelService,
     // Not exported by TwoFactorAuthenticationModule; both need only core repositories, so they are provided here
     TwoFactorAuthenticationBackupCodeService,
     provideWorkspaceScopedRepository(TwoFactorAuthenticationMethodEntity),

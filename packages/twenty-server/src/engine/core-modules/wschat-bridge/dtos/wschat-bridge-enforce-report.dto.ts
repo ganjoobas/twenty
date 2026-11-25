@@ -27,9 +27,21 @@ export class WschatBridgeEnforceReportDTO {
   // Active keys holding the API role
   activeApiKeys: number;
 
+  // WSChat's own key (name "WSChat") exists and is not revoked
+  serviceKeyActive: boolean;
+
   // Reported only; nothing is deleted
   webhooks: number;
 
   // SSO lives in enterprise-licensed files the bridge does not import
   sso: 'not checked';
+
+  // WSChat objects ("wschatCall") and fields ("person.wschatPhones") created by this run
+  dataModelCreated: string[];
+
+  // Ours, but deactivated or labelled other than the requested locale: reactivated / relabelled
+  dataModelRepaired: string[];
+
+  // Same name but not ours or another shape, or its object is missing: left untouched
+  dataModelConflicts: string[];
 }

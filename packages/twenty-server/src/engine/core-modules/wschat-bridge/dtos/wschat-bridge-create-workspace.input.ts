@@ -3,6 +3,7 @@ import {
   ArrayMaxSize,
   IsArray,
   IsDefined,
+  IsIn,
   IsOptional,
   IsString,
   Matches,
@@ -10,6 +11,10 @@ import {
   ValidateNested,
 } from 'class-validator';
 
+import {
+  WSCHAT_BRIDGE_LOCALES,
+  type WschatBridgeLocale,
+} from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-data-model.constant';
 import { WschatBridgeMemberProfileInput } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-member-profile.input';
 
 export class WschatBridgeCreateWorkspaceInput {
@@ -34,6 +39,13 @@ export class WschatBridgeCreateWorkspaceInput {
   @MaxLength(50)
   @Matches(/\S/, { message: 'adminRoleLabel must not be blank' })
   adminRoleLabel?: string;
+
+  // Labels of the WSChat objects and fields; English when absent
+  @IsOptional()
+  @IsIn([...WSCHAT_BRIDGE_LOCALES], {
+    message: `locale must be one of: ${WSCHAT_BRIDGE_LOCALES.join(', ')}`,
+  })
+  locale?: WschatBridgeLocale;
 
   // Origin syntax and the 20-origin cap are checked by the service (EMBEDDING_ORIGIN_INVALID / TOO_MANY_EMBEDDING_ORIGINS)
   @IsOptional()
