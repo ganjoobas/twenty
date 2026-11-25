@@ -348,3 +348,67 @@ Each mutating call logs one line: workspace id, action, masked e-mail.
 - The `logger` e-mail driver writes full e-mail bodies (login and verification
   links included) to the server log; use a real driver or treat the log as
   secret.
+
+## AI through WSChat
+
+AI inside each CRM workspace is served by WSChat through an OpenAI-compatible
+endpoint. Two small upstream edits (listed in `WSCHAT.md`) make that endpoint
+able to meter and bill per company:
+
+- Every model call carries attribution headers, built next to the telemetry
+  options in `build-ai-telemetry.util.ts`; other providers simply ignore them:
+  - `X-WSChat-Feature`: always; which Twenty feature calls.
+  - `X-WSChat-Workspace-Id`: the company's workspace, when known.
+  - `X-WSChat-User-Workspace-Id`: the member's membership, when known.
+  - `X-WSChat-Agent-Id`: the AI agent, when an agent runs.
+- Feature values: `ai-chat-stream`, `ai-chat-workspace-setup-stream`,
+  `agent-execution`, `agent-structured-output`, `agent-title-generation`,
+  `repair-tool-call`, `ai-generate-text`.
+- openai-compatible providers are built with `includeUsage: true`, so streamed
+  answers end with a usage chunk.
+
+Server settings:
+
+- `AI_CATALOG_STORAGE_PATH`, e.g. `config/ai-catalog.json`: a catalogue file in
+  the configured storage. With `STORAGE_TYPE=local` it is read from
+  `<STORAGE_LOCAL_PATH>/<path>`; in the image the default local path is
+  `/app/packages/twenty-server/.local-storage`, so with our compose mount the
+  file lives at `/srv/data/twenty/storage/config/ai-catalog.json` on the host.
+  It is read once, when each server or worker process starts
+  (`DefaultAiCatalogService.onModuleInit`), so changes need a restart. It
+  replaces the built-in provider list, and a file that cannot be read leaves
+  NO providers at all (no fallback to the built-in list). Providers from this
+  catalogue are not "custom providers": the 25-seat rule without an enterprise
+  key (`CustomAiProviderAccessService`, `MAX_SEATS_WITHOUT_ENTERPRISE_KEY`)
+  only drops entries coming from `AI_PROVIDERS`
+  (`ProviderConfigService.getResolvedProviders`, `includeCustomProviders`).
+  In `apiKey`, `baseUrl`, `accessKeyId`, `secretAccessKey` a whole value of
+  the form `{{NAME}}` is replaced by the config variable `NAME`, or by the
+  plain environment variable `NAME` if it is not a declared one. A provider
+  without an API key counts as not configured and serves nothing.
+- `AI_MODELS_DEFAULT_FAST`, `AI_MODELS_DEFAULT_SMART` (and the other
+  `AI_MODELS_DEFAULT_*` tiers): model ids as `provider/model`, e.g.
+  `["wschat/wschat-fast"]`.
+- `AI_SIGNED_FILE_URLS_ENABLED=false`: files go to the endpoint as bytes, not
+  as links to this server.
+- Leave `AI_USER_CREDITS_LIMIT` unset: credits are WSChat's balance, checked
+  by the endpoint itself.
+
+Minimal catalogue for one provider:
+
+```json
+{
+  "wschat": {
+    "npm": "@ai-sdk/openai-compatible",
+    "name": "wschat",
+    "label": "WSChat",
+    "baseUrl": "{{WSCHAT_AI_BASE_URL}}",
+    "apiKey": "{{WSCHAT_AI_API_KEY}}",
+    "models": [
+      { "name": "wschat-fast", "label": "WSChat Fast" },
+      { "name": "wschat-smart", "label": "WSChat Smart" }
+    ]
+  }
+}
+```
+

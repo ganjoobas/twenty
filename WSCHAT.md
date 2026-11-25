@@ -18,6 +18,11 @@ This repository is upstream [Twenty](https://github.com/twentyhq/twenty) at tag
 - `auth/constants/max-workspaces-without-organization-key.constant.ts`: the
   number of workspaces allowed without an enterprise key is raised from 5 to
   10000, because every WSChat client company gets its own workspace.
+- `metadata-modules/ai/ai-models/utils/build-ai-telemetry.util.ts`: every AI
+  call also sends `X-WSChat-*` headers naming the feature and workspace, so the
+  WSChat AI endpoint can meter and bill each company.
+- `metadata-modules/ai/ai-models/services/sdk-provider-factory.service.ts`:
+  openai-compatible providers ask for token usage on streamed responses.
 - `.github/workflows/wschat-check.yml`: typecheck, unit tests and lint for the
   bridge module on every push to a `wschat/**` branch (the image build itself
   does not typecheck).

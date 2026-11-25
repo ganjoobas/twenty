@@ -17,7 +17,28 @@ type BuildAiTelemetryArgs = {
 type AiTelemetryCallOptions = {
   telemetry: TelemetryOptions<Record<string, string>>;
   runtimeContext: Record<string, string>;
+  headers: Record<string, string>;
 };
+
+// WSChat fork: lets a metering proxy behind an openai-compatible provider attribute each call; other providers ignore them
+const buildWschatAttributionHeaders = ({
+  functionId,
+  workspaceId,
+  userWorkspaceId,
+  agentId,
+}: Pick<
+  BuildAiTelemetryArgs,
+  'functionId' | 'workspaceId' | 'userWorkspaceId' | 'agentId'
+>): Record<string, string> => ({
+  'X-WSChat-Feature': functionId,
+  ...(isNonEmptyString(workspaceId) && {
+    'X-WSChat-Workspace-Id': workspaceId,
+  }),
+  ...(isNonEmptyString(userWorkspaceId) && {
+    'X-WSChat-User-Workspace-Id': userWorkspaceId,
+  }),
+  ...(isNonEmptyString(agentId) && { 'X-WSChat-Agent-Id': agentId }),
+});
 
 // telemetry integrations only receive per-call attributes opted in from runtime context
 export const buildAiTelemetry = ({
@@ -40,5 +61,6 @@ export const buildAiTelemetry = ({
       ),
     },
     runtimeContext,
+    headers: buildWschatAttributionHeaders({ functionId, ...identifiers }),
   };
 };

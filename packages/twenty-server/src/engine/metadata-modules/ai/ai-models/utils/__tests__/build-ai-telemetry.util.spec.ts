@@ -75,4 +75,33 @@ describe('buildAiTelemetry', () => {
     expect(telemetry.recordInputs).toBe(true);
     expect(telemetry.recordOutputs).toBe(true);
   });
+
+  it('should send the feature and every non-empty identifier as WSChat attribution headers', () => {
+    const { headers } = buildAiTelemetry({
+      functionId: 'agent-execution',
+      isContentRecordingAllowed: true,
+      workspaceId: 'workspace-id',
+      userWorkspaceId: 'user-workspace-id',
+      agentId: 'agent-id',
+      threadId: 'thread-id',
+    });
+
+    expect(headers).toEqual({
+      'X-WSChat-Feature': 'agent-execution',
+      'X-WSChat-Workspace-Id': 'workspace-id',
+      'X-WSChat-User-Workspace-Id': 'user-workspace-id',
+      'X-WSChat-Agent-Id': 'agent-id',
+    });
+  });
+
+  it('should send only the feature header when no identifier is known', () => {
+    const { headers } = buildAiTelemetry({
+      functionId: 'repair-tool-call',
+      isContentRecordingAllowed: true,
+      userWorkspaceId: null,
+      agentId: '',
+    });
+
+    expect(headers).toEqual({ 'X-WSChat-Feature': 'repair-tool-call' });
+  });
 });

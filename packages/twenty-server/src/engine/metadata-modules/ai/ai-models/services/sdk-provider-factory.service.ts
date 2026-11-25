@@ -227,6 +227,8 @@ export class SdkProviderFactoryService {
       name: config.name ?? 'openai-compatible',
       baseURL: config.baseUrl,
       ...(config.apiKey && { apiKey: config.apiKey }),
+      // WSChat fork: streamed responses report token usage only when asked to
+      includeUsage: true,
     });
 
     return this.toProviderInstance(
