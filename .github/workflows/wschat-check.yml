@@ -1,0 +1,52 @@
+name: WSChat check
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'wschat/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wschat-check-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
+
+env:
+  BRIDGE_DIR: src/engine/core-modules/wschat-bridge
+
+jobs:
+  check:
+    timeout-minutes: 45
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Install dependencies
+        uses: ./.github/actions/yarn-install
+
+      # The image build uses swc without typecheck, so this is the only place types are checked.
+      # Same set as twenty-server's workspace deps, i.e. what its typecheck/lint "^build" needs.
+      - name: Build server dependencies
+        run: npx nx run-many -t build -p twenty-shared twenty-emails twenty-client-sdk twenty-oxlint-rules
+
+      # Direct tsgo instead of nx typecheck: nx cache can serve a stale pass.
+      - name: Typecheck twenty-server
+        working-directory: packages/twenty-server
+        run: npx tsgo -p tsconfig.json --noEmit
+
+      - name: Unit tests (wschat-bridge)
+        working-directory: packages/twenty-server
+        run: npx jest "$BRIDGE_DIR" --config=jest.config.mjs --ci
+
+      - name: Lint (wschat-bridge)
+        working-directory: packages/twenty-server
+        run: |
+          npx oxlint --type-aware -c .oxlintrc.json "$BRIDGE_DIR"
+          npx oxfmt --check "$BRIDGE_DIR"
