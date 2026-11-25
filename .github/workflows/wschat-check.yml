@@ -32,9 +32,9 @@ jobs:
         uses: ./.github/actions/yarn-install
 
       # The image build uses swc without typecheck, so this is the only place types are checked.
-      # Same set as twenty-server's workspace deps, i.e. what its typecheck/lint "^build" needs.
+      # twenty-server's workspace deps, plus twenty-sdk: scripts/build-seed-front-components.ts imports its build output.
       - name: Build server dependencies
-        run: npx nx run-many -t build -p twenty-shared twenty-emails twenty-client-sdk twenty-oxlint-rules
+        run: npx nx run-many -t build -p twenty-shared twenty-emails twenty-client-sdk twenty-oxlint-rules twenty-sdk
 
       # Direct tsgo instead of nx typecheck: nx cache can serve a stale pass.
       - name: Typecheck twenty-server
