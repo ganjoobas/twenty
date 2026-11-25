@@ -19,10 +19,17 @@ defaults:
 
 env:
   BRIDGE_DIR: src/engine/core-modules/wschat-bridge
+  # Front files changed by the fork (embedding host links)
+  FRONT_FILES: >-
+    src/modules/ui/field/display/utils/postLinkToEmbeddingHost.ts
+    src/modules/ui/field/display/utils/handleEmbeddingHostLinkClick.ts
+    src/modules/ui/field/display/utils/__tests__/handleEmbeddingHostLinkClick.test.ts
+    src/modules/object-record/record-field/ui/meta-types/display/components/LinksFieldDisplay.tsx
+    src/modules/object-record/record-field/ui/hooks/useGetSecondaryFieldButton.ts
 
 jobs:
   check:
-    timeout-minutes: 45
+    timeout-minutes: 60
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -50,3 +57,26 @@ jobs:
         run: |
           npx oxlint --type-aware -c .oxlintrc.json "$BRIDGE_DIR"
           npx oxfmt --check "$BRIDGE_DIR"
+
+      # Same ^build dependencies as upstream's twenty-front typecheck target (ci-front.yaml)
+      - name: Build front dependencies
+        run: npx nx run-many -t build -p twenty-ui twenty-front-component-renderer
+
+      - name: Typecheck twenty-front
+        working-directory: packages/twenty-front
+        env:
+          NODE_OPTIONS: '--max-old-space-size=6144'
+        run: npx tsgo -p tsconfig.json --noEmit
+
+      - name: Unit tests (front, fork files)
+        working-directory: packages/twenty-front
+        run: |
+          cp .env.example .env
+          npx jest src/modules/ui/field/display/utils/__tests__/handleEmbeddingHostLinkClick.test.ts --config=jest.config.mjs --ci
+
+      - name: Lint (front, fork files)
+        working-directory: packages/twenty-front
+        run: |
+          # shellcheck disable=SC2086
+          npx oxlint --type-aware -c .oxlintrc.json $FRONT_FILES
+          npx oxfmt --check $FRONT_FILES

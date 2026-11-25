@@ -9,6 +9,7 @@ import { isFieldEmails } from '@/object-record/record-field/ui/types/guards/isFi
 import { isFieldLinks } from '@/object-record/record-field/ui/types/guards/isFieldLinks';
 import { isFieldPhones } from '@/object-record/record-field/ui/types/guards/isFieldPhones';
 import { useRecordFieldValue } from '@/object-record/record-store/hooks/useRecordFieldValue';
+import { postLinkToEmbeddingHost } from '@/ui/field/display/utils/postLinkToEmbeddingHost';
 import { useContext } from 'react';
 import { FieldMetadataSettingsOnClickAction } from 'twenty-shared/types';
 import { ensureAbsoluteUrl, isDefined } from 'twenty-shared/utils';
@@ -87,7 +88,11 @@ export const useGetSecondaryFieldButton = () => {
   if (isFieldLinks(fieldDefinition)) {
     const url = (fieldValue as FieldLinksValue).primaryLinkUrl ?? '';
     openLinkOnClick = () => {
-      openUrlInNewTab(ensureAbsoluteUrl(url));
+      const absoluteUrl = ensureAbsoluteUrl(url);
+
+      if (!postLinkToEmbeddingHost({ url: absoluteUrl })) {
+        openUrlInNewTab(absoluteUrl);
+      }
     };
     copyOnClick = () => {
       copyToClipboard(url, t`Link copied to clipboard`);

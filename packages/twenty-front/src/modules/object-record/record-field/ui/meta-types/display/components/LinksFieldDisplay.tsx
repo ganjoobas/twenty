@@ -1,5 +1,6 @@
 import { useLinksFieldDisplay } from '@/object-record/record-field/ui/meta-types/hooks/useLinksFieldDisplay';
 import { LinksDisplay } from '@/ui/field/display/components/LinksDisplay';
+import { handleEmbeddingHostLinkClick } from '@/ui/field/display/utils/handleEmbeddingHostLinkClick';
 import { useLingui } from '@lingui/react/macro';
 import React from 'react';
 import { FieldMetadataSettingsOnClickAction } from 'twenty-shared/types';
@@ -20,7 +21,11 @@ export const LinksFieldDisplay = () => {
     if (onClickAction === FieldMetadataSettingsOnClickAction.COPY) {
       event.preventDefault();
       copyToClipboard(url, t`Link copied to clipboard`);
+
+      return;
     }
+
+    handleEmbeddingHostLinkClick({ url, event });
   };
 
   return <LinksDisplay value={fieldValue} onLinkClick={handleLinkClick} />;
