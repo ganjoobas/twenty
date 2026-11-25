@@ -100,7 +100,8 @@ export class WschatBridgeWorkspacesController {
   private async describeWorkspace(
     workspaceId: string,
   ): Promise<WschatBridgeWorkspaceDTO> {
-    const workspace = await this.workspaceLookupService.findOrThrow(workspaceId);
+    const workspace =
+      await this.workspaceLookupService.findOrThrow(workspaceId);
 
     return {
       workspaceId: workspace.id,

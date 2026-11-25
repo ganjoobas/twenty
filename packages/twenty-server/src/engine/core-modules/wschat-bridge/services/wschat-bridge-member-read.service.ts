@@ -92,7 +92,8 @@ export class WschatBridgeMemberReadService {
         email: userWorkspace.user.email,
         firstName:
           workspaceMember?.name?.firstName ?? userWorkspace.user.firstName,
-        lastName: workspaceMember?.name?.lastName ?? userWorkspace.user.lastName,
+        lastName:
+          workspaceMember?.name?.lastName ?? userWorkspace.user.lastName,
         role: toBridgeRoleName(
           rolesByUserWorkspaceId.get(userWorkspace.id)?.[0],
         ),

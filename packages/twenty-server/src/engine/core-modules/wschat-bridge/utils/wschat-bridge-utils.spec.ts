@@ -51,9 +51,9 @@ describe('normalizeBridgeEmbeddingOrigins', () => {
   });
 
   it('should reject an origin with a path', () => {
-    expect(
-      normalizeBridgeEmbeddingOrigins(['https://wschat.org/app']),
-    ).toEqual({ kind: 'invalid', origin: 'https://wschat.org/app' });
+    expect(normalizeBridgeEmbeddingOrigins(['https://wschat.org/app'])).toEqual(
+      { kind: 'invalid', origin: 'https://wschat.org/app' },
+    );
   });
 
   it('should reject more than 20 distinct origins', () => {

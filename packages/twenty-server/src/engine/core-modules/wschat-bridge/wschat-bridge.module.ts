@@ -35,7 +35,11 @@ import { WorkspaceCacheModule } from 'src/engine/workspace-cache/workspace-cache
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([WorkspaceEntity, UserEntity, UserWorkspaceEntity]),
+    TypeOrmModule.forFeature([
+      WorkspaceEntity,
+      UserEntity,
+      UserWorkspaceEntity,
+    ]),
     TokenModule,
     WorkspaceDomainsModule,
     UserWorkspaceModule,

@@ -16,7 +16,10 @@ import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system
 
 export type WschatBridgeWorkspaceCoreFields = Pick<
   UpdateWorkspaceInput,
-  'displayName' | 'subdomain' | 'isPublicInviteLinkEnabled' | 'isPasswordAuthEnabled'
+  | 'displayName'
+  | 'subdomain'
+  | 'isPublicInviteLinkEnabled'
+  | 'isPasswordAuthEnabled'
 >;
 
 @Injectable()

@@ -1,9 +1,4 @@
-import {
-  HttpException,
-  HttpStatus,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
 import { isDefined } from 'twenty-shared/utils';
@@ -35,7 +30,8 @@ const describeError = (error: unknown) =>
 
 // Known refusals keep their own code; anything else is reported as a rolled-back creation, not a bare 500
 const toCreationFailure = (error: unknown) =>
-  error instanceof HttpException || mapUpstreamErrorToBridgeError(error) !== null
+  error instanceof HttpException ||
+  mapUpstreamErrorToBridgeError(error) !== null
     ? error
     : wschatBridgeHttpException(
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -46,7 +42,9 @@ const toCreationFailure = (error: unknown) =>
 @Injectable()
 // oxlint-disable-next-line twenty/inject-workspace-repository
 export class WschatBridgeWorkspaceCreationService {
-  private readonly logger = new Logger(WschatBridgeWorkspaceCreationService.name);
+  private readonly logger = new Logger(
+    WschatBridgeWorkspaceCreationService.name,
+  );
 
   constructor(
     @InjectRepository(WorkspaceEntity)
@@ -240,7 +238,10 @@ export class WschatBridgeWorkspaceCreationService {
 
     await this.workspaceSettingsService.updateCoreFields({
       workspaceId: workspace.id,
-      fields: { isPublicInviteLinkEnabled: false, isPasswordAuthEnabled: false },
+      fields: {
+        isPublicInviteLinkEnabled: false,
+        isPasswordAuthEnabled: false,
+      },
     });
 
     if (embeddingOrigins.length > 0) {
