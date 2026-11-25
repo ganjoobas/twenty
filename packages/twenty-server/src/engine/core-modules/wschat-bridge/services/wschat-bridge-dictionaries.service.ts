@@ -1,7 +1,7 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 
 import { FieldMetadataType } from 'twenty-shared/types';
-import { isDefined } from 'twenty-shared/utils';
+import { isDefined, isTagColor } from 'twenty-shared/utils';
 
 import {
   WSCHAT_BRIDGE_FIELDS,
@@ -132,7 +132,8 @@ export class WschatBridgeDictionariesService {
         id: option.id,
         value: option.value,
         label: option.label,
-        color: 'color' in option ? option.color : 'gray',
+        color:
+          'color' in option && isTagColor(option.color) ? option.color : 'gray',
         position: option.position,
         ...(option.isActive === false ? { isActive: false } : {}),
       }));
