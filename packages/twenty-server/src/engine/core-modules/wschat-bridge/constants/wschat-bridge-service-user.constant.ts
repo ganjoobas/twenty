@@ -1,0 +1,1 @@
+export const WSCHAT_BRIDGE_SERVICE_USER_FIRST_NAME = 'WSChat';

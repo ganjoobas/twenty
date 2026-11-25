@@ -8,6 +8,7 @@ import { type WorkspaceEntity } from 'src/engine/core-modules/workspace/workspac
 import { WSCHAT_BRIDGE_ERROR_CODES } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-error-codes.constant';
 import { type WschatBridgeRemovedMemberDTO } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-member.dto';
 import { WschatBridgeRolesService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-roles.service';
+import { WschatBridgeServiceUserService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-service-user.service';
 import { WschatBridgeWorkspaceLookupService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-lookup.service';
 import { maskEmail } from 'src/engine/core-modules/wschat-bridge/utils/mask-email.util';
 import { normalizeBridgeEmail } from 'src/engine/core-modules/wschat-bridge/utils/normalize-bridge-email.util';
@@ -22,12 +23,15 @@ export class WschatBridgeMemberRemovalService {
     private readonly userWorkspaceService: UserWorkspaceService,
     private readonly workspaceLookupService: WschatBridgeWorkspaceLookupService,
     private readonly rolesService: WschatBridgeRolesService,
+    private readonly serviceUserService: WschatBridgeServiceUserService,
   ) {}
 
   async removeMember(
     workspaceId: string,
     rawEmail: string,
   ): Promise<WschatBridgeRemovedMemberDTO> {
+    this.serviceUserService.assertNotServiceUserOrThrow(rawEmail);
+
     const workspace =
       await this.workspaceLookupService.findProvisionedOrThrow(workspaceId);
     const email = normalizeBridgeEmail(rawEmail);

@@ -15,10 +15,11 @@ import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.ent
 import { WSCHAT_BRIDGE_ERROR_CODES } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-error-codes.constant';
 import { type WschatBridgeCreateWorkspaceInput } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-create-workspace.input';
 import { type WschatBridgeCreatedWorkspaceDTO } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-workspace.dto';
-import { WschatBridgeMemberSettingsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-member-settings.service';
+import { WschatBridgeCompanyAdminRoleService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-company-admin-role.service';
+import { WschatBridgeMemberUpsertService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-member-upsert.service';
 import { WschatBridgeOnboardingService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-onboarding.service';
 import { WschatBridgeSubdomainService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-subdomain.service';
-import { WschatBridgeUserService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-user.service';
+import { WschatBridgeServiceUserService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-service-user.service';
 import { WschatBridgeWorkspaceLookupService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-lookup.service';
 import { WschatBridgeWorkspaceSettingsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-settings.service';
 import { mapUpstreamErrorToBridgeError } from 'src/engine/core-modules/wschat-bridge/utils/map-upstream-error-to-bridge-error.util';
@@ -54,9 +55,10 @@ export class WschatBridgeWorkspaceCreationService {
     private readonly workspaceService: WorkspaceService,
     private readonly userWorkspaceService: UserWorkspaceService,
     private readonly subdomainService: WschatBridgeSubdomainService,
-    private readonly userService: WschatBridgeUserService,
+    private readonly serviceUserService: WschatBridgeServiceUserService,
     private readonly workspaceSettingsService: WschatBridgeWorkspaceSettingsService,
-    private readonly memberSettingsService: WschatBridgeMemberSettingsService,
+    private readonly companyAdminRoleService: WschatBridgeCompanyAdminRoleService,
+    private readonly memberUpsertService: WschatBridgeMemberUpsertService,
     private readonly onboardingService: WschatBridgeOnboardingService,
     private readonly workspaceLookupService: WschatBridgeWorkspaceLookupService,
   ) {}
@@ -68,6 +70,7 @@ export class WschatBridgeWorkspaceCreationService {
     const subdomain = input.subdomain.trim();
 
     // Everything that can be refused is checked before the first write
+    this.serviceUserService.assertNotServiceUserOrThrow(input.admin.email);
     await this.assertMultiWorkspaceAllowedOrThrow();
     await this.subdomainService.assertUsableOrThrow(subdomain);
 
@@ -77,7 +80,8 @@ export class WschatBridgeWorkspaceCreationService {
         )
       : [];
 
-    const { user } = await this.userService.findOrCreate(input.admin);
+    // The service user creates the workspace, so it is the one that receives the standard Admin role
+    const user = await this.serviceUserService.findOrCreate();
 
     const pendingWorkspace = await this.createPendingWorkspace({
       user,
@@ -103,7 +107,7 @@ export class WschatBridgeWorkspaceCreationService {
     );
 
     this.logger.log(
-      `Workspace ${workspace.id}: created (subdomain ${workspace.subdomain}, status ${workspace.activationStatus}), admin ${maskEmail(user.email)}`,
+      `Workspace ${workspace.id}: created (subdomain ${workspace.subdomain}, status ${workspace.activationStatus}), admin ${maskEmail(input.admin.email)}`,
     );
 
     return {
@@ -214,8 +218,8 @@ export class WschatBridgeWorkspaceCreationService {
     input: WschatBridgeCreateWorkspaceInput;
     embeddingOrigins: string[];
   }): Promise<void> {
-    // Builds the schema, standard objects/views and roles, the admin's workspaceMember and Admin role, exactly as the
-    // activateWorkspace mutation does; the real user (not the in-memory copy) is passed
+    // Builds the schema, standard objects/views and roles, the service user's workspaceMember and Admin role, exactly
+    // as the activateWorkspace mutation does; the real user (not the in-memory copy) is passed
     const activatedWorkspace = await this.workspaceService.activateWorkspace(
       fromUserEntityToFlat(user),
       workspace,
@@ -229,20 +233,7 @@ export class WschatBridgeWorkspaceCreationService {
       await this.workspaceService.reactivateWorkspace(workspace.id);
     }
 
-    const adminUserWorkspace =
-      await this.userWorkspaceService.getUserWorkspaceForUserOrThrow({
-        userId: user.id,
-        workspaceId: workspace.id,
-        relations: [],
-      });
-
-    await this.workspaceSettingsService.updateCoreFields({
-      workspaceId: workspace.id,
-      fields: {
-        isPublicInviteLinkEnabled: false,
-        isPasswordAuthEnabled: false,
-      },
-    });
+    await this.workspaceSettingsService.enforceOwnedSettings(workspace.id);
 
     if (embeddingOrigins.length > 0) {
       await this.workspaceSettingsService.setEmbeddingOrigins({
@@ -251,23 +242,26 @@ export class WschatBridgeWorkspaceCreationService {
       });
     }
 
-    await this.memberSettingsService.apply({
-      workspaceId: workspace.id,
-      userId: user.id,
-      userWorkspaceId: adminUserWorkspace.id,
-      profile: input.admin,
-    });
-
-    await this.userService.markEmailVerified(user);
-
     await this.onboardingService.completeAllSteps({
       userId: user.id,
       workspaceId: workspace.id,
     });
+
+    await this.companyAdminRoleService.ensure({
+      workspaceId: workspace.id,
+      label: input.adminRoleLabel?.trim(),
+    });
+
+    // The company's own admin joins like any member WSChat adds later
+    await this.memberUpsertService.upsertMember(workspace.id, {
+      ...input.admin,
+      role: 'admin',
+    });
   }
 
-  // Hard delete (the same path as the admin panel's workspace deletion): a soft-deleted row would keep holding the
-  // subdomain. Upstream also soft-deletes the admin's core.user if this was their only workspace.
+  // Hard delete (the admin panel's path): a soft-deleted row would keep holding the subdomain. Upstream also
+  // soft-deletes every member's core.user that has no other workspace, the service user included on the very
+  // first creation; the next findOrCreate then makes a fresh row (the e-mail index ignores deleted rows).
   private async removeHalfCreatedWorkspaceOrThrow(
     workspaceId: string,
     cause: unknown,

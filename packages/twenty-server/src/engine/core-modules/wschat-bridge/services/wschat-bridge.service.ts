@@ -20,6 +20,7 @@ import { AuthProviderEnum } from 'src/engine/core-modules/workspace/types/worksp
 import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { type WschatBridgeLoginLinkDTO } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-login-link.dto';
 import { type WschatBridgeLoginLinkInput } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-login-link.input';
+import { WschatBridgeServiceUserService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-service-user.service';
 import { maskEmail } from 'src/engine/core-modules/wschat-bridge/utils/mask-email.util';
 import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system-auth-context.util';
 import { WorkspaceOrmManager } from 'src/engine/twenty-orm/workspace-orm.manager';
@@ -45,11 +46,15 @@ export class WschatBridgeService {
     private readonly workspaceDomainsService: WorkspaceDomainsService,
     private readonly twentyConfigService: TwentyConfigService,
     private readonly workspaceOrmManager: WorkspaceOrmManager,
+    private readonly serviceUserService: WschatBridgeServiceUserService,
   ) {}
 
   async createLoginLink(
     input: WschatBridgeLoginLinkInput,
   ): Promise<WschatBridgeLoginLinkDTO> {
+    // Nobody may act in a workspace as the service user, the holder of the standard Admin role
+    this.serviceUserService.assertNotServiceUserOrThrow(input.email);
+
     // Soft-deleted workspaces, users and memberships are excluded by TypeORM's @DeleteDateColumn
     const workspace = await this.workspaceRepository.findOne({
       where: { id: input.workspaceId },

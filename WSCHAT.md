@@ -11,6 +11,9 @@ This repository is upstream [Twenty](https://github.com/twentyhq/twenty) at tag
   It also lets WSChat create a workspace for a client company and keep its
   members in sync, with no sign-up, invitations or onboarding screens. For
   that, `auth.module.ts` exports `SignInUpService` (one added line).
+  People and sign-in settings of bridge workspaces are owned by WSChat: a
+  service user (`WSCHAT_BRIDGE_SERVICE_USER_EMAIL`) holds the Admin role,
+  company admins get a restricted role, and `/enforce` repairs drift.
 - `auth/constants/max-workspaces-without-organization-key.constant.ts`: the
   number of workspaces allowed without an enterprise key is raised from 5 to
   10000, because every WSChat client company gets its own workspace.

@@ -7,7 +7,8 @@ export type WschatBridgeErrorStatus =
   | HttpStatus.FORBIDDEN
   | HttpStatus.NOT_FOUND
   | HttpStatus.CONFLICT
-  | HttpStatus.INTERNAL_SERVER_ERROR;
+  | HttpStatus.INTERNAL_SERVER_ERROR
+  | HttpStatus.SERVICE_UNAVAILABLE;
 
 const ERROR_NAME_BY_STATUS: Record<WschatBridgeErrorStatus, string> = {
   [HttpStatus.BAD_REQUEST]: 'Bad Request',
@@ -15,6 +16,7 @@ const ERROR_NAME_BY_STATUS: Record<WschatBridgeErrorStatus, string> = {
   [HttpStatus.NOT_FOUND]: 'Not Found',
   [HttpStatus.CONFLICT]: 'Conflict',
   [HttpStatus.INTERNAL_SERVER_ERROR]: 'Internal Server Error',
+  [HttpStatus.SERVICE_UNAVAILABLE]: 'Service Unavailable',
 };
 
 export type WschatBridgeErrorBody = {

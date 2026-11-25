@@ -16,6 +16,8 @@ import {
 } from '@nestjs/common';
 
 import { WschatBridgeCreateWorkspaceInput } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-create-workspace.input';
+import { type WschatBridgeEnforceReportDTO } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-enforce-report.dto';
+import { WschatBridgeEnforceInput } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-enforce.input';
 import {
   type WschatBridgeRemovedMemberDTO,
   type WschatBridgeUpsertedMemberDTO,
@@ -28,10 +30,12 @@ import {
   type WschatBridgeWorkspaceDTO,
 } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-workspace.dto';
 import { WschatBridgeExceptionFilter } from 'src/engine/core-modules/wschat-bridge/filters/wschat-bridge-exception.filter';
+import { WschatBridgeServiceUserConfiguredGuard } from 'src/engine/core-modules/wschat-bridge/guards/wschat-bridge-service-user-configured.guard';
 import { WschatBridgeSecretGuard } from 'src/engine/core-modules/wschat-bridge/guards/wschat-bridge-secret.guard';
 import { WschatBridgeMemberReadService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-member-read.service';
 import { WschatBridgeMemberRemovalService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-member-removal.service';
 import { WschatBridgeMemberUpsertService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-member-upsert.service';
+import { WschatBridgeWorkspaceEnforcementService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-enforcement.service';
 import { WschatBridgeWorkspaceCreationService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-creation.service';
 import { WschatBridgeWorkspaceLookupService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-lookup.service';
 import { WschatBridgeWorkspaceUpdateService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-update.service';
@@ -40,7 +44,12 @@ import { PublicEndpointGuard } from 'src/engine/guards/public-endpoint.guard';
 
 // Server-to-server only, like the login link: WschatBridgeSecretGuard is the authentication, no Twenty session exists
 @Controller('wschat-bridge/workspaces')
-@UseGuards(WschatBridgeSecretGuard, PublicEndpointGuard, NoPermissionGuard)
+@UseGuards(
+  WschatBridgeSecretGuard,
+  WschatBridgeServiceUserConfiguredGuard,
+  PublicEndpointGuard,
+  NoPermissionGuard,
+)
 @UseFilters(WschatBridgeExceptionFilter)
 @UsePipes(new ValidationPipe({ whitelist: true }))
 export class WschatBridgeWorkspacesController {
@@ -51,6 +60,7 @@ export class WschatBridgeWorkspacesController {
     private readonly memberReadService: WschatBridgeMemberReadService,
     private readonly memberUpsertService: WschatBridgeMemberUpsertService,
     private readonly memberRemovalService: WschatBridgeMemberRemovalService,
+    private readonly workspaceEnforcementService: WschatBridgeWorkspaceEnforcementService,
   ) {}
 
   @Post()
@@ -95,6 +105,18 @@ export class WschatBridgeWorkspacesController {
     @Body() body: WschatBridgeRemoveMemberInput,
   ): Promise<WschatBridgeRemovedMemberDTO> {
     return this.memberRemovalService.removeMember(workspaceId, body.email);
+  }
+
+  @Post(':workspaceId/enforce')
+  @HttpCode(200)
+  async enforceWorkspace(
+    @Param('workspaceId', new ParseUUIDPipe()) workspaceId: string,
+    @Body() body: WschatBridgeEnforceInput,
+  ): Promise<WschatBridgeEnforceReportDTO> {
+    return this.workspaceEnforcementService.enforce(
+      workspaceId,
+      body.adminRoleLabel,
+    );
   }
 
   private async describeWorkspace(

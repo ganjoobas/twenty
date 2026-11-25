@@ -9,6 +9,7 @@ import { UserService } from 'src/engine/core-modules/user/services/user.service'
 import { type WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { WSCHAT_BRIDGE_ERROR_CODES } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-error-codes.constant';
 import { type WschatBridgeMemberDTO } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-member.dto';
+import { WschatBridgeServiceUserService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-service-user.service';
 import { toBridgeRoleName } from 'src/engine/core-modules/wschat-bridge/utils/to-bridge-role-name.util';
 import { wschatBridgeHttpException } from 'src/engine/core-modules/wschat-bridge/utils/wschat-bridge-http-exception.util';
 import { RolePermissionsService } from 'src/engine/permissions/role-permissions.service';
@@ -20,6 +21,7 @@ export class WschatBridgeMemberReadService {
     private readonly userWorkspaceRepository: Repository<UserWorkspaceEntity>,
     private readonly userService: UserService,
     private readonly rolePermissionsService: RolePermissionsService,
+    private readonly serviceUserService: WschatBridgeServiceUserService,
   ) {}
 
   async listMembers(
@@ -61,8 +63,11 @@ export class WschatBridgeMemberReadService {
     workspace: WorkspaceEntity,
     userWorkspaces: UserWorkspaceEntity[],
   ): Promise<WschatBridgeMemberDTO[]> {
-    const userWorkspacesWithUser = userWorkspaces.filter((userWorkspace) =>
-      isDefined(userWorkspace.user),
+    // The service user is WSChat's own and never reported as a member
+    const userWorkspacesWithUser = userWorkspaces.filter(
+      (userWorkspace) =>
+        isDefined(userWorkspace.user) &&
+        !this.serviceUserService.isServiceUserEmail(userWorkspace.user.email),
     );
 
     if (userWorkspacesWithUser.length === 0) {

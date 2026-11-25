@@ -96,6 +96,32 @@ lowercased. A member object in responses:
 `role` is `admin` or `member` for the standard roles (matched by universal
 identifier, not by label), the label of a custom role, or `null` if none.
 
+### People are owned by WSChat
+
+Members are defined in WSChat only; a CRM admin cannot add, invite or remove
+people or loosen sign-in.
+
+- **Service user.** `WSCHAT_BRIDGE_SERVICE_USER_EMAIL` (env only) names one
+  `core.user` (first name `WSChat`, no password, e-mail verified, never a
+  server admin) shared by all bridge workspaces. It creates each workspace and
+  is the only holder of the standard Admin role there. It is never listed by
+  `GET`, refused by `PUT`/`DELETE …/members` and by the login link
+  (`409 SERVICE_USER`). When the variable is empty every workspace endpoint
+  answers `503 SERVICE_USER_NOT_CONFIGURED`; the login link keeps working.
+- **Company-admin role.** Bridge role `admin` is a custom role with the fixed
+  universal identifier `fa1f5cda-89e7-4647-9ab5-210407f4aa5b`, label
+  `Company admin` unless `adminRoleLabel` (≤ 50 characters) is given. Same
+  record and tool access as Admin (read/create/update/soft-delete/destroy all
+  records, all tools, all agent chat channels), assignable to users only, and
+  exactly these settings flags: `DATA_MODEL`, `WORKFLOWS`, `LAYOUTS`,
+  `AI_SETTINGS`. No members, security, workspace, roles or API key settings.
+  Members read back as `admin` both on this role and on the standard Admin
+  (until `enforce` converts them).
+- **Owned settings**, applied at creation and by `enforce` through
+  `updateWorkspaceById`: password, public invite link, Google and Microsoft
+  sign-in and impersonation off; `email` removed from `editableProfileFields`
+  (other entries kept; WSChat identifies people by e-mail).
+
 ### `POST /wschat-bridge/workspaces` → `201`
 
 ```json
@@ -103,6 +129,7 @@ identifier, not by label), the label of a custom role, or `null` if none.
   "displayName": "Taxi 555",
   "subdomain": "taxi555",
   "admin": { "email": "boss@taxi555.kg", "firstName": "Aibek", "lastName": "", "locale": "ru-RU", "colorScheme": "Light" },
+  "adminRoleLabel": "Администратор компании",
   "allowedEmbeddingOrigins": ["https://wschat.org"]
 }
 ```
@@ -111,38 +138,39 @@ Response: `{ "workspaceId": "<uuid>", "subdomain": "taxi555", "url": "https://ta
 
 Order of work:
 
-1. Refusals first, before any write: `IS_MULTIWORKSPACE_ENABLED` (a first
-   workspace on an empty instance is always allowed, as upstream), subdomain
-   format (lowercase `a-z0-9-`, at most 30 characters, not starting with
-   `api-`), reserved names (`RESERVED_SUBDOMAINS`, `DEFAULT_SUBDOMAIN`,
-   `ADDITIONAL_RESERVED_SUBDOMAINS`), subdomain already used (soft-deleted
-   workspaces included), embedding origins (syntax, at most 20).
-2. The admin's `core.user` is reused when the e-mail exists, otherwise created
-   like an SSO sign-up: no password hash at all, e-mail verified, never a server
-   admin.
+1. Refusals first, before any write: the admin is not the service user,
+   `IS_MULTIWORKSPACE_ENABLED` (a first workspace on an empty instance is
+   always allowed, as upstream), subdomain format (lowercase `a-z0-9-`, at most
+   30 characters, not starting with `api-`), reserved names
+   (`RESERVED_SUBDOMAINS`, `DEFAULT_SUBDOMAIN`, `ADDITIONAL_RESERVED_SUBDOMAINS`),
+   subdomain already used (soft-deleted workspaces included), embedding origins
+   (syntax, at most 20).
+2. The service user is found or created.
 3. `SignInUpService.signUpOnNewWorkspace` creates the workspace row, its custom
-   application and the admin's membership in one transaction, and applies the
-   upstream workspace-count limit (`WORKSPACE_LIMIT_REACHED`). The only upstream
-   rule skipped is `IS_WORKSPACE_CREATION_LIMITED_TO_SERVER_ADMINS`: the bridge
-   is the authority. Nobody gets server-admin flags.
+   application and the service user's membership in one transaction, and
+   applies the upstream workspace-count limit (`WORKSPACE_LIMIT_REACHED`). The
+   only upstream rule skipped is `IS_WORKSPACE_CREATION_LIMITED_TO_SERVER_ADMINS`.
+   Nobody gets server-admin flags.
 4. `WorkspaceService.activateWorkspace` builds the schema, standard objects,
-   views and roles, the admin's workspace member and Admin role, as the normal
-   onboarding does. Status is `ACTIVE` (with billing on, a `CREATED` workspace
-   is reactivated to `ACTIVE`, otherwise the onboarding cleaner would delete it
-   after 7 days).
-5. `isPublicInviteLinkEnabled = false`, `isPasswordAuthEnabled = false`,
-   embedding origins, the admin's name/locale/theme, e-mail verified, every
-   onboarding step cleared: the admin lands straight in the app via a login
-   link (the login-token exchange does not look at `isPasswordAuthEnabled`).
+   views and roles; the service user becomes the workspace's Admin. Status is
+   `ACTIVE` (with billing on, a `CREATED` workspace is reactivated, otherwise
+   the onboarding cleaner would delete it after 7 days).
+5. Owned settings, embedding origins, the service user's onboarding cleared,
+   company-admin role created.
+6. The `admin` person is added exactly like `PUT …/members` with role `admin`:
+   user reused or created, company-admin role, name/locale/theme, e-mail
+   verified, onboarding cleared. They land straight in the app via a login
+   link (the login-token exchange looks neither at `isPasswordAuthEnabled` nor
+   at `AUTH_PASSWORD_ENABLED`).
 
 Guarantee: if any step after the workspace row exists fails, the workspace is
 hard-deleted (the admin panel's deletion path) so it does not keep the
 subdomain, and the call answers with the original refusal code or
 `WORKSPACE_CREATION_FAILED`. If that deletion fails too, the answer is `500
 WORKSPACE_CREATION_FAILED` naming the workspace id, which then needs manual
-removal. Side effect of the clean-up: a `core.user` created by this call (or one
-with no other workspace) ends up soft-deleted, as upstream does; a retry creates
-a fresh one.
+removal. Side effect of the clean-up: upstream soft-deletes the `core.user` of
+every member with no other workspace, the service user included when it was
+its first workspace; the next call creates a fresh row for the same e-mail.
 
 ### `GET /wschat-bridge/workspaces/:workspaceId` → `200`
 
@@ -184,6 +212,43 @@ delete the whole workspace) or `409 LAST_ADMIN`, then calls
 pass to a successor, the member and membership are removed, and the user is
 soft-deleted if this was their last workspace. `{ "removed": true }`.
 
+### `POST /wschat-bridge/workspaces/:workspaceId/enforce` → `200`
+
+Body: `{ "adminRoleLabel"?: string }`. Brings a workspace to the rules above;
+used once for workspaces created before the service user existed and then on
+every full sync as drift repair. Every step checks first, so it is safe to
+repeat after a failure part-way. It never removes members (WSChat does that
+with `DELETE …/members`) and never revokes API keys.
+
+1. Service user becomes a member with the standard Admin role (repairing a
+   half-made membership).
+2. Company-admin role created or its label, switches and flags re-applied.
+3. Every human on the standard Admin role moves to the company-admin role (after
+   step 1, so the last-admin rule is not hit). Humans on any other role than
+   company admin or Member are left alone and counted.
+4. Owned settings re-applied where they drifted.
+5. Pending invitations and approved access domains deleted.
+
+Response:
+
+```json
+{
+  "serviceUserAdded": true,
+  "adminRoleCreated": true,
+  "adminRoleFlagsFixed": false,
+  "convertedAdmins": 1,
+  "unexpectedRoles": 0,
+  "settingsFixed": ["isPasswordAuthEnabled", "editableProfileFields"],
+  "invitationsDeleted": 0,
+  "approvedDomainsDeleted": 0,
+  "activeApiKeys": 0,
+  "sso": "not checked"
+}
+```
+
+`sso` is always `not checked`: SSO identity providers live in
+enterprise-licensed files the bridge does not import.
+
 ### Error codes
 
 | Status | Code | When |
@@ -202,6 +267,7 @@ soft-deleted if this was their last workspace. `{ "removed": true }`.
 | 409 | `WORKSPACE_NOT_READY` | Workspace still `PENDING_CREATION` / `ONGOING_CREATION` (PUT, DELETE, PATCH) |
 | 409 | `LAST_ADMIN` | Demoting or removing the last Admin |
 | 409 | `LAST_MEMBER` | Removing the last member |
+| 409 | `SERVICE_USER` | The e-mail is the service user's (create, member upsert/removal, login link) |
 | 409 | `LAST_SERVER_ADMIN` | Removing the instance's last server admin from their last workspace |
 | 409 | `SEAT_LIMIT_REACHED` | Billing seat limit (billing on only) |
 | 409 | `ROLE_NOT_FOUND` | The standard Admin/Member role is missing |
@@ -211,3 +277,16 @@ soft-deleted if this was their last workspace. `{ "removed": true }`.
 | 500 | `INTERNAL_ERROR` | Anything else; details only in the server log |
 
 Each mutating call logs one line: workspace id, action, masked e-mail.
+
+`503 SERVICE_USER_NOT_CONFIGURED`: `WSCHAT_BRIDGE_SERVICE_USER_EMAIL` is empty
+(all workspace endpoints, not the login link).
+
+## Server settings this design relies on
+
+- `AUTH_PASSWORD_ENABLED=false`: a workspace admin cannot switch password
+  sign-in back on (`updateWorkspaceById` refuses it). Bridge login links are
+  not affected; the token exchange does not read it.
+- `IS_EMAIL_VERIFICATION_REQUIRED=false`: closes the invitation +
+  verify-e-mail join path (`verifyEmailAndGetLoginToken`).
+- `AUTH_GOOGLE_ENABLED` / `AUTH_MICROSOFT_ENABLED` off.
+- No enterprise key (SSO and other enterprise features stay off).

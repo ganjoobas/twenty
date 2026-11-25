@@ -5,19 +5,12 @@ import { isDefined } from 'twenty-shared/utils';
 
 import { WSCHAT_BRIDGE_ERROR_CODES } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-error-codes.constant';
 import { type WschatBridgeMemberRole } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-member-roles.constant';
+import { WschatBridgeCompanyAdminRoleService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-company-admin-role.service';
 import { wschatBridgeHttpException } from 'src/engine/core-modules/wschat-bridge/utils/wschat-bridge-http-exception.util';
 import { RoleService } from 'src/engine/metadata-modules/role/role.service';
 import { RoleAssignmentWriteService } from 'src/engine/permissions/role-assignment/role-assignment-write.service';
 import { RolePermissionsService } from 'src/engine/permissions/role-permissions.service';
 import { STANDARD_ROLE } from 'src/engine/workspace-manager/twenty-standard-application/constants/standard-role.constant';
-
-const UNIVERSAL_IDENTIFIER_BY_BRIDGE_ROLE: Record<
-  WschatBridgeMemberRole,
-  string
-> = {
-  admin: STANDARD_ROLE.admin.universalIdentifier,
-  member: MEMBER_ROLE_UNIVERSAL_IDENTIFIER,
-};
 
 @Injectable()
 export class WschatBridgeRolesService {
@@ -25,9 +18,10 @@ export class WschatBridgeRolesService {
     private readonly roleService: RoleService,
     private readonly rolePermissionsService: RolePermissionsService,
     private readonly roleAssignmentWriteService: RoleAssignmentWriteService,
+    private readonly companyAdminRoleService: WschatBridgeCompanyAdminRoleService,
   ) {}
 
-  // Looked up by universal identifier: the two standard roles exist in every activated workspace (setupDefaultRoles)
+  // Bridge "admin" is the company-admin role (created on demand); the standard Admin is kept for the service user
   async resolveRoleIdOrThrow({
     workspaceId,
     role,
@@ -35,8 +29,39 @@ export class WschatBridgeRolesService {
     workspaceId: string;
     role: WschatBridgeMemberRole;
   }): Promise<string> {
+    if (role === 'admin') {
+      const { roleId } = await this.companyAdminRoleService.ensure({
+        workspaceId,
+      });
+
+      return roleId;
+    }
+
+    return this.resolveStandardRoleIdOrThrow({
+      workspaceId,
+      universalIdentifier: MEMBER_ROLE_UNIVERSAL_IDENTIFIER,
+    });
+  }
+
+  async resolveStandardAdminRoleIdOrThrow(
+    workspaceId: string,
+  ): Promise<string> {
+    return this.resolveStandardRoleIdOrThrow({
+      workspaceId,
+      universalIdentifier: STANDARD_ROLE.admin.universalIdentifier,
+    });
+  }
+
+  // Both standard roles exist in every activated workspace (setupDefaultRoles)
+  private async resolveStandardRoleIdOrThrow({
+    workspaceId,
+    universalIdentifier,
+  }: {
+    workspaceId: string;
+    universalIdentifier: string;
+  }): Promise<string> {
     const roleDto = await this.roleService.getRoleByUniversalIdentifier({
-      universalIdentifier: UNIVERSAL_IDENTIFIER_BY_BRIDGE_ROLE[role],
+      universalIdentifier,
       workspaceId,
     });
 
@@ -44,7 +69,7 @@ export class WschatBridgeRolesService {
       throw wschatBridgeHttpException(
         HttpStatus.CONFLICT,
         WSCHAT_BRIDGE_ERROR_CODES.ROLE_NOT_FOUND,
-        `The standard "${role}" role does not exist in this workspace`,
+        `Standard role ${universalIdentifier} does not exist in this workspace`,
       );
     }
 

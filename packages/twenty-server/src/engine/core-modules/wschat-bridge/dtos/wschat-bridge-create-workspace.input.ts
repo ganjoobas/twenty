@@ -28,6 +28,13 @@ export class WschatBridgeCreateWorkspaceInput {
   @Type(() => WschatBridgeMemberProfileInput)
   admin: WschatBridgeMemberProfileInput;
 
+  // Name of the company-admin role in the company's language; "Company admin" when absent
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  @Matches(/\S/, { message: 'adminRoleLabel must not be blank' })
+  adminRoleLabel?: string;
+
   // Origin syntax and the 20-origin cap are checked by the service (EMBEDDING_ORIGIN_INVALID / TOO_MANY_EMBEDDING_ORIGINS)
   @IsOptional()
   @IsArray()

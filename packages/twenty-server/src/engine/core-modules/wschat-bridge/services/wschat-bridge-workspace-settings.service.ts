@@ -10,6 +10,7 @@ import { type UpdateWorkspaceInput } from 'src/engine/core-modules/workspace/dto
 import { WorkspaceService } from 'src/engine/core-modules/workspace/services/workspace.service';
 import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { WSCHAT_BRIDGE_ERROR_CODES } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-error-codes.constant';
+import { buildBridgeWorkspaceSettingsDrift } from 'src/engine/core-modules/wschat-bridge/utils/build-bridge-workspace-settings-drift.util';
 import { normalizeBridgeEmbeddingOrigins } from 'src/engine/core-modules/wschat-bridge/utils/normalize-bridge-embedding-origins.util';
 import { wschatBridgeHttpException } from 'src/engine/core-modules/wschat-bridge/utils/wschat-bridge-http-exception.util';
 import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system-auth-context.util';
@@ -20,6 +21,10 @@ export type WschatBridgeWorkspaceCoreFields = Pick<
   | 'subdomain'
   | 'isPublicInviteLinkEnabled'
   | 'isPasswordAuthEnabled'
+  | 'isGoogleAuthEnabled'
+  | 'isMicrosoftAuthEnabled'
+  | 'allowImpersonation'
+  | 'editableProfileFields'
 >;
 
 @Injectable()
@@ -84,6 +89,25 @@ export class WschatBridgeWorkspaceSettingsService {
         userWorkspaceId: anyUserWorkspace?.id,
       }),
     );
+  }
+
+  // Sign-in and profile settings the bridge owns; returns the names of the fields it had to change
+  async enforceOwnedSettings(workspaceId: string): Promise<string[]> {
+    const workspace = await this.workspaceRepository.findOneByOrFail({
+      id: workspaceId,
+    });
+
+    const drift = buildBridgeWorkspaceSettingsDrift(workspace);
+
+    await this.updateCoreFields({
+      workspaceId,
+      fields: {
+        ...drift,
+        editableProfileFields: drift.editableProfileFields ?? undefined,
+      },
+    });
+
+    return Object.keys(drift);
   }
 
   // The upstream API edits one origin at a time; removals go first so the 20-origin cap is never crossed mid-way.
