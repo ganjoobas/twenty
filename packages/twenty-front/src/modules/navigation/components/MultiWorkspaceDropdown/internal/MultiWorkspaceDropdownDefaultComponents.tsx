@@ -35,12 +35,17 @@ import { Avatar } from 'twenty-ui/primitives/data-display';
 import { useIsMobile } from 'twenty-ui/utilities';
 import { useNavigateSettings } from '~/hooks/useNavigateSettings';
 import { getAbsoluteImageUrl } from '~/utils/image/getAbsoluteImageUrl';
+// WSChat fork: no Log out and no Create Workspace, see WSCHAT.md
+import { WSCHAT_HIDDEN_FEATURES } from '@/wschat/constants/WschatHiddenFeatures';
 
 export const MultiWorkspaceDropdownDefaultComponents = () => {
   const currentWorkspace = useAtomStateValue(currentWorkspaceState);
   const isMultiWorkspaceEnabled = useAtomStateValue(
     isMultiWorkspaceEnabledState,
   );
+  // WSChat fork: workspaces are created only by WSChat
+  const isCreateWorkspaceShown =
+    isMultiWorkspaceEnabled && !WSCHAT_HIDDEN_FEATURES.createWorkspace;
   const { t } = useLingui();
   const availableWorkspaces = useAtomStateValue(availableWorkspacesState);
   const availableWorkspacesCount =
@@ -84,37 +89,46 @@ export const MultiWorkspaceDropdownDefaultComponents = () => {
           )}
         />
         <Dropdown.Title>{currentWorkspace?.displayName}</Dropdown.Title>
-        <DropdownRoot
-          dropdownId="multi-workspace-dropdown-context-menu"
-          type="menu"
-        >
-          <Dropdown.Trigger
-            render={
-              <LightIconButton
-                size="sm"
-                emphasis="subtle"
-                aria-label={t`More options`}
-              >
-                <IconDotsVertical />
-              </LightIconButton>
-            }
-          />
-          <DropdownContent align="end">
-            <Dropdown.Section>
-              {isMultiWorkspaceEnabled && (
-                <Dropdown.ActionItem
-                  startIcon={<IconPlus />}
-                  onClick={createWorkspace}
+        {/* WSChat fork: no empty menu once both items are hidden */}
+        {(isCreateWorkspaceShown || !WSCHAT_HIDDEN_FEATURES.signOut) && (
+          <DropdownRoot
+            dropdownId="multi-workspace-dropdown-context-menu"
+            type="menu"
+          >
+            <Dropdown.Trigger
+              render={
+                <LightIconButton
+                  size="sm"
+                  emphasis="subtle"
+                  aria-label={t`More options`}
                 >
-                  {t`Create Workspace`}
-                </Dropdown.ActionItem>
-              )}
-              <Dropdown.ActionItem startIcon={<IconLogout />} onClick={signOut}>
-                {t`Log out`}
-              </Dropdown.ActionItem>
-            </Dropdown.Section>
-          </DropdownContent>
-        </DropdownRoot>
+                  <IconDotsVertical />
+                </LightIconButton>
+              }
+            />
+            <DropdownContent align="end">
+              <Dropdown.Section>
+                {isCreateWorkspaceShown && (
+                  <Dropdown.ActionItem
+                    startIcon={<IconPlus />}
+                    onClick={createWorkspace}
+                  >
+                    {t`Create Workspace`}
+                  </Dropdown.ActionItem>
+                )}
+                {/* WSChat fork: leaving is done in WSChat */}
+                {!WSCHAT_HIDDEN_FEATURES.signOut && (
+                  <Dropdown.ActionItem
+                    startIcon={<IconLogout />}
+                    onClick={signOut}
+                  >
+                    {t`Log out`}
+                  </Dropdown.ActionItem>
+                )}
+              </Dropdown.Section>
+            </DropdownContent>
+          </DropdownRoot>
+        )}
       </Dropdown.Header>
       {availableWorkspacesCount > 1 && (
         <>

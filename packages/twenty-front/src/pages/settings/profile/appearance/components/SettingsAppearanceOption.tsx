@@ -7,8 +7,7 @@ import { MOBILE_VIEWPORT, themeCssVariables, useTheme } from 'twenty-ui/theme';
 import { SettingsAppearancePreview } from '~/pages/settings/profile/appearance/components/SettingsAppearancePreview';
 import { type ColorScheme } from '@/ui/theme/types/ColorScheme';
 // Salesfarce: remove with the theme
-import { SalesfarceBadge } from '@/salesfarce/components/SalesfarceBadge';
-import { SALESFARCE_APPEARANCE_VALUE } from '@/salesfarce/constants/SalesfarceAppearanceValue';
+import { type SALESFARCE_APPEARANCE_VALUE } from '@/salesfarce/constants/SalesfarceAppearanceValue';
 
 const StyledChoice = styled.label`
   display: flex;
@@ -108,8 +107,7 @@ export const SettingsAppearanceOption = ({
         render={<StyledTile />}
       >
         <SettingsAppearancePreview colorScheme={colorScheme} />
-        {/* Salesfarce: remove with the theme */}
-        {colorScheme === SALESFARCE_APPEARANCE_VALUE && <SalesfarceBadge />}
+        {/* WSChat fork: no "Enterprise only" badge, the theme is free here */}
         <Radio.Indicator keepMounted aria-hidden render={<StyledCheckmark />}>
           <IconCheck size={theme.icon.size.sm} />
         </Radio.Indicator>

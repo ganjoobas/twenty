@@ -10,6 +10,8 @@ import { SettingsProfileConnectedAppsSection } from '@/settings/profile/connecte
 import { SettingsProfileDevicesSection } from '@/settings/profile/devices/components/SettingsProfileDevicesSection';
 import { useCanChangePassword } from '@/settings/profile/hooks/useCanChangePassword';
 import { useCurrentUserWorkspaceTwoFactorAuthentication } from '@/settings/two-factor-authentication/hooks/useCurrentUserWorkspaceTwoFactorAuthentication';
+// WSChat fork: no 2FA and no account deletion, see WSCHAT.md
+import { WSCHAT_HIDDEN_FEATURES } from '@/wschat/constants/WschatHiddenFeatures';
 import { WorkspaceMemberPictureUploader } from '@/settings/workspace-member/components/WorkspaceMemberPictureUploader';
 import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
 import { Trans, useLingui } from '@lingui/react/macro';
@@ -68,27 +70,30 @@ export const SettingsProfile = () => {
           />
           <EmailField />
         </Section.Root>
-        <Section.Root>
-          <Section.Header
-            title={t`Two Factor Authentication`}
-            description={t`Enhances security by requiring a code along with your password`}
-          />
-          <SettingsCard
-            to={getSettingsPath(
-              SettingsPath.TwoFactorAuthenticationStrategyConfig,
-              { twoFactorAuthenticationStrategy: 'TOTP' },
-            )}
-            title={t`Authenticator App`}
-            Icon={<IconShield />}
-            Status={
-              has2FAMethod ? (
-                <Status color="turquoise">{t`Active`}</Status>
-              ) : (
-                <Status color="gray">{t`Deactivated`}</Status>
-              )
-            }
-          />
-        </Section.Root>
+        {/* WSChat fork: no 2FA section */}
+        {!WSCHAT_HIDDEN_FEATURES.twoFactorAuthentication && (
+          <Section.Root>
+            <Section.Header
+              title={t`Two Factor Authentication`}
+              description={t`Enhances security by requiring a code along with your password`}
+            />
+            <SettingsCard
+              to={getSettingsPath(
+                SettingsPath.TwoFactorAuthenticationStrategyConfig,
+                { twoFactorAuthenticationStrategy: 'TOTP' },
+              )}
+              title={t`Authenticator App`}
+              Icon={<IconShield />}
+              Status={
+                has2FAMethod ? (
+                  <Status color="turquoise">{t`Active`}</Status>
+                ) : (
+                  <Status color="gray">{t`Deactivated`}</Status>
+                )
+              }
+            />
+          </Section.Root>
+        )}
         {canChangePassword && (
           <Section.Root>
             <SetOrChangePassword />
@@ -96,9 +101,12 @@ export const SettingsProfile = () => {
         )}
         <SettingsProfileDevicesSection />
         <SettingsProfileConnectedAppsSection />
-        <Section.Root>
-          <DeleteAccount />
-        </Section.Root>
+        {/* WSChat fork: people are managed by WSChat */}
+        {!WSCHAT_HIDDEN_FEATURES.deleteAccount && (
+          <Section.Root>
+            <DeleteAccount />
+          </Section.Root>
+        )}
       </SettingsPageContainer>
     </SettingsPageLayout>
   );

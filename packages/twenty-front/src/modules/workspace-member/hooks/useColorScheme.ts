@@ -21,6 +21,8 @@ import {
 import { type ColorScheme } from '@/ui/theme/types/ColorScheme';
 // Salesfarce: remove with the theme
 import { reloadWindow } from '~/utils/reloadWindow';
+// WSChat fork: picking Light, Dark or System unpins Salesfarce
+import { wschatSetSalesfarcePinned } from '@/wschat/utils/wschatSalesfarcePin';
 
 export const useColorScheme = () => {
   const currentWorkspaceMember = useAtomStateValue(currentWorkspaceMemberState);
@@ -57,6 +59,9 @@ export const useColorScheme = () => {
             colorScheme: value,
           },
         });
+
+        // WSChat fork: unpin Salesfarce once the new theme is saved
+        wschatSetSalesfarcePinned(false);
 
         // Salesfarce: remove with the theme
         if (store.get(salesfarceIsActiveState.atom)) {

@@ -15,6 +15,8 @@ import {
   type WorkspaceRouteObject,
 } from '@/app/routing/types/WorkspaceRouteObject';
 import { SETTINGS_AI_TABS } from '@/settings/ai/constants/SettingsAiTabs';
+// WSChat fork: hidden 2FA and AI usage pages, see WSCHAT.md
+import { WSCHAT_HIDDEN_FEATURES } from '@/wschat/constants/WschatHiddenFeatures';
 import { SettingsLegacyAccountsRedirect } from '@/settings/app-preferences/components/SettingsLegacyAccountsRedirect';
 import { APP_PREFERENCES_PATH_BY_LEGACY_ACCOUNTS_PATH } from '@/settings/app-preferences/constants/AppPreferencesPathByLegacyAccountsPath';
 import { SettingsProtectedRouteWrapper } from '@/settings/components/SettingsProtectedRouteWrapper';
@@ -827,7 +829,14 @@ const createSettingsRouteElements = ({
     <Route path={SettingsPath.ProfilePage} element={<SettingsProfile />} />
     <Route
       path={SettingsPath.TwoFactorAuthenticationStrategyConfig}
-      element={<SettingsTwoFactorAuthenticationMethod />}
+      element={
+        // WSChat fork: 2FA is WSChat's, back to the profile
+        WSCHAT_HIDDEN_FEATURES.twoFactorAuthentication ? (
+          <Navigate to={getSettingsPath(SettingsPath.ProfilePage)} replace />
+        ) : (
+          <SettingsTwoFactorAuthenticationMethod />
+        )
+      }
     />
     <Route path={SettingsPath.Experience} element={<SettingsExperience />} />
     {/* Reached from both the Applications and Accounts settings; the mutation checks the caller per provider scope */}
@@ -980,7 +989,14 @@ const createSettingsRouteElements = ({
       />
       <Route
         path={SettingsPath.AiUsageUserDetail}
-        element={<SettingsAiUsageUserDetail />}
+        element={
+          // WSChat fork: AI usage is hidden, back to the AI settings
+          WSCHAT_HIDDEN_FEATURES.aiUsage ? (
+            <Navigate to={getSettingsPath(SettingsPath.AI)} replace />
+          ) : (
+            <SettingsAiUsageUserDetail />
+          )
+        }
       />
       <Route
         path={SettingsPath.AiToolDetail}

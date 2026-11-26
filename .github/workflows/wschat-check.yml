@@ -19,13 +19,25 @@ defaults:
 
 env:
   BRIDGE_DIR: src/engine/core-modules/wschat-bridge
-  # Front files changed by the fork (embedding host links)
+  # Front files changed by the fork (embedding host links, hidden features, pinned Salesfarce)
   FRONT_FILES: >-
     src/modules/ui/field/display/utils/postLinkToEmbeddingHost.ts
     src/modules/ui/field/display/utils/handleEmbeddingHostLinkClick.ts
     src/modules/ui/field/display/utils/__tests__/handleEmbeddingHostLinkClick.test.ts
     src/modules/object-record/record-field/ui/meta-types/display/components/LinksFieldDisplay.tsx
     src/modules/object-record/record-field/ui/hooks/useGetSecondaryFieldButton.ts
+    src/modules/wschat/constants/WschatHiddenFeatures.ts
+    src/modules/wschat/utils/wschatSalesfarcePin.ts
+    src/modules/wschat/utils/__tests__/wschatSalesfarcePin.test.tsx
+    src/modules/salesfarce/states/salesfarceIsActiveState.ts
+    src/modules/salesfarce/utils/salesfarceEnter.ts
+    src/modules/workspace-member/hooks/useColorScheme.ts
+    src/pages/settings/profile/appearance/components/SettingsAppearanceOption.tsx
+    src/pages/settings/profile/SettingsProfile.tsx
+    src/pages/settings/ai/SettingsAI.tsx
+    src/modules/app/components/SettingsRoutes.tsx
+    src/modules/settings/hooks/useSettingsNavigationItems.tsx
+    src/modules/navigation/components/MultiWorkspaceDropdown/internal/MultiWorkspaceDropdownDefaultComponents.tsx
 
 jobs:
   check:
@@ -72,7 +84,13 @@ jobs:
         working-directory: packages/twenty-front
         run: |
           cp .env.example .env
-          npx jest src/modules/ui/field/display/utils/__tests__/handleEmbeddingHostLinkClick.test.ts --config=jest.config.mjs --ci
+          npx jest \
+            src/modules/ui/field/display/utils/__tests__/handleEmbeddingHostLinkClick.test.ts \
+            src/modules/wschat/utils/__tests__/wschatSalesfarcePin.test.tsx \
+            src/pages/settings/profile/appearance/components/__tests__/SalesfarceSettingsAppearance.test.tsx \
+            src/modules/salesfarce/utils/__tests__/salesfarceConsumeRequest.test.ts \
+            src/modules/settings/hooks/__tests__/useSettingsNavigationItems.test.tsx \
+            --config=jest.config.mjs --ci
 
       - name: Lint (front, fork files)
         working-directory: packages/twenty-front

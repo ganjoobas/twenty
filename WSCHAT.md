@@ -31,6 +31,37 @@ This repository is upstream [Twenty](https://github.com/twentyhq/twenty) at tag
   cell's "open link" button (`useGetSecondaryFieldButton.ts`) are handed to
   the page embedding the CRM instead of opening a new tab, see below
   (`ui/field/display/utils/postLinkToEmbeddingHost.ts`).
+- `twenty-front`: features that make no sense inside the WSChat frame are
+  hidden, switched in one place, `modules/wschat/constants/WschatHiddenFeatures.ts`:
+  - two-factor authentication: the profile section is not shown and
+    `/settings/profile/two-factor-authentication/*` goes back to the profile
+    (`SettingsProfile.tsx`, `SettingsRoutes.tsx`). People sign in only through
+    WSChat, which has its own second factor. The server side is untouched: the
+    code step at sign-in still works for anyone who has 2FA on, and the bridge
+    resets it;
+  - AI usage: the Usage tab of AI settings is filtered out (`SettingsAI.tsx`;
+    `#usage` falls back to the first tab) and the per-user usage page goes back
+    to AI settings (`SettingsRoutes.tsx`). It is a paid upstream feature; WSChat
+    meters AI itself;
+  - Logout: the settings menu item (`useSettingsNavigationItems.tsx`) and
+    "Log out" in the workspace menu (`MultiWorkspaceDropdownDefaultComponents.tsx`).
+    Leaving is done in WSChat; the CRM sign-in screen is not used. Sign-outs
+    the app performs itself (after deleting the account, ending impersonation,
+    on the sign-in and plan screens) are kept;
+  - Create Workspace in the workspace menu: workspaces are created only by
+    WSChat through the bridge. With Log out also gone that "⋯" menu would be
+    empty, so its button is not shown either
+    (`MultiWorkspaceDropdownDefaultComponents.tsx`);
+  - Delete account in the profile (`SettingsProfile.tsx`; the server mutation
+    is untouched): people are managed by WSChat, self-deletion would drop the
+    person from every company's CRM and the next sync would recreate them.
+- `twenty-front`, Salesfarce theme: upstream keeps it for one reload
+  (`sessionStorage`); here the choice is also pinned in `localStorage`
+  (`modules/wschat/utils/wschatSalesfarcePin.ts`), read by
+  `salesfarceIsActiveState.ts`, set by `salesfarceEnter.ts` and cleared by
+  `useColorScheme.ts` once Light, Dark or System is saved (that still reloads
+  out of the theme). Without storage the theme just is not pinned. The
+  "Enterprise only" badge is not shown (`SettingsAppearanceOption.tsx`).
 - `.github/workflows/wschat-check.yml`: typecheck, unit tests and lint for the
   bridge module and the front changes on every push to a `wschat/**` branch
   (the image build itself does not typecheck).

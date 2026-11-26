@@ -31,6 +31,8 @@ import {
 } from 'twenty-ui/icon';
 import { PermissionFlagType } from '~/generated-metadata/graphql';
 import { openUrlInNewTab } from '~/utils/openUrlInNewTab';
+// WSChat fork: no Logout, see WSCHAT.md
+import { WSCHAT_HIDDEN_FEATURES } from '@/wschat/constants/WschatHiddenFeatures';
 import { useLingui } from '@lingui/react/macro';
 
 export type SettingsNavigationSection = {
@@ -192,6 +194,8 @@ const useSettingsNavigationItems = (): SettingsNavigationSection[] => {
           label: t`Logout`,
           onClick: signOut,
           Icon: IconDoorEnter,
+          // WSChat fork: leaving is done in WSChat, see WSCHAT.md
+          isHidden: WSCHAT_HIDDEN_FEATURES.signOut,
           matchSubPages: false,
         },
       ],
