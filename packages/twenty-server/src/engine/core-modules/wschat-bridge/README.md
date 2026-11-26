@@ -178,6 +178,9 @@ Order of work:
    busy schema, see `SCHEMA_BUSY`), the workspace is kept and the response
    says `"dataModelReady": false`; the caller then repeats `enforce` until it
    reports `"dataModelReady": true`.
+8. Only when the data model is ready: the starter layout (see "Starter
+   layout", names in `locale`). It never fails the call; what it could not
+   do is repeated by `enforce`.
 
 Guarantee: if any of steps 3–6 fails, the workspace is
 hard-deleted (the admin panel's deletion path) so it does not keep the
@@ -191,8 +194,11 @@ its first workspace; the next call creates a fresh row for the same e-mail.
 ### `GET /wschat-bridge/workspaces/:workspaceId` → `200`
 
 ```json
-{ "workspaceId": "...", "displayName": "...", "subdomain": "...", "url": "...", "activationStatus": "ACTIVE", "members": [ ... ] }
+{ "workspaceId": "...", "displayName": "...", "subdomain": "...", "url": "...", "activationStatus": "ACTIVE", "assistantsEnabled": false, "members": [ ... ] }
 ```
+
+`assistantsEnabled`: whether external assistants may connect (see "External
+assistants").
 
 `404 WORKSPACE_NOT_FOUND` for an unknown or soft-deleted workspace. A workspace
 still being created is returned with no members.
@@ -200,7 +206,9 @@ still being created is returned with no members.
 ### `PATCH /wschat-bridge/workspaces/:workspaceId` → `200`
 
 Body: any of `displayName`, `subdomain`, `allowedEmbeddingOrigins` (the full
-new list; `[]` clears it). Validation as in `POST`, all before the first write.
+new list; `[]` clears it), `assistantsEnabled` (as in `enforce`; WSChat uses it
+to close assistants of a company that switched its CRM off, without a full
+`enforce`). Validation as in `POST`, all before the first write.
 Name and subdomain go through `updateWorkspaceById` (custom-domain bookkeeping
 and caches as upstream); origins through the per-origin upstream method,
 removals first. Response: the workspace as in `GET`. Changing the subdomain
@@ -277,13 +285,16 @@ it, since it holds the API role.
 
 ### `POST /wschat-bridge/workspaces/:workspaceId/enforce` → `200`
 
-Body: `{ "adminRoleLabel"?: string, "locale"?: "en" | "ru" }`. Brings a
-workspace to the rules above;
+Body: `{ "adminRoleLabel"?: string, "locale"?: "en" | "ru", "assistantsEnabled"?: boolean }`.
+Brings a workspace to the rules above;
 used once for workspaces created before the service user existed and then on
 every full sync as drift repair. Every step checks first, so it is safe to
 repeat after a failure part-way. It never removes members (WSChat does that
 with `DELETE …/members`).
 
+0. External assistants switched to `assistantsEnabled` (absent: left as they
+   are); while off, their grants are revoked (see "External assistants").
+   First, so a later failing step never leaves them open.
 1. Service user becomes a member with the standard Admin role (repairing a
    half-made membership).
 2. Company-admin role created or its label, switches and flags re-applied.
@@ -298,6 +309,9 @@ with `DELETE …/members`).
    it fails, the earlier steps stay applied and the call answers
    `500 DATA_MODEL_FAILED` (or `409 SCHEMA_BUSY`); repeating it finishes the
    model. Without `locale` existing labels are left as they are.
+8. Then the starter layout ("Starter layout"; names and labels in `locale`,
+   English without it). Its failures are listed in `starterLayoutFailed` and
+   never fail the call.
 
 **Caller's duty:** before writing records or dictionaries into a workspace,
 repeat `enforce` (with a pause of a few seconds, also after `409 SCHEMA_BUSY`)
@@ -309,6 +323,8 @@ Response:
 
 ```json
 {
+  "assistantsEnabled": false,
+  "assistantAuthorizationsRevoked": 0,
   "serviceUserAdded": true,
   "adminRoleCreated": true,
   "adminRoleFlagsFixed": false,
@@ -326,7 +342,11 @@ Response:
   "dataModelCreated": ["wschatCall", "person.wschatPhones"],
   "dataModelRepaired": [],
   "dataModelConflicts": [],
-  "dataModelReady": true
+  "dataModelReady": true,
+  "starterLayoutCreated": ["task.byType", "wschatConversation.open", "wschatConversation.byOutcome", "wschatCall.missed"],
+  "starterLayoutRelabelled": ["task.status", "opportunity.stage"],
+  "starterLayoutFailed": [],
+  "starterLayoutVersion": 1
 }
 ```
 
@@ -371,6 +391,65 @@ Each mutating call logs one line: workspace id, action, masked e-mail.
 
 `503 SERVICE_USER_NOT_CONFIGURED`: `WSCHAT_BRIDGE_SERVICE_USER_EMAIL` is empty
 (all workspace endpoints, not the login link).
+
+## External assistants
+
+ChatGPT, Claude and other MCP clients connect through upstream's MCP endpoint
+and OAuth server. Here they are allowed per workspace, off by default; WSChat
+turns them on only for companies with its API service, through `enforce`.
+
+Storage: one `core.keyValuePair` row (type `CONFIG_VARIABLE`, the workspace's
+id, no user, no application, key `WSCHAT_ASSISTANTS_ENABLED`, value `true`);
+no row means off. An existing core table, so no migration; upstream reads
+`CONFIG_VARIABLE` rows only with an empty `workspaceId`, and the row goes with
+the workspace (cascade). It is read on every gated request, never cached.
+
+Gate (`WschatBridgeAssistantsGateMiddleware`, bound by this module to `/mcp`,
+`/mcp/*`, `/oauth/*`, `/.well-known/*`; every refusal is Nest's unknown-route
+`404`):
+
+1. The workspace is the one of the request host (`имя.<base>` or a custom
+   domain, as upstream resolves it). The service host (`DEFAULT_SUBDOMAIN`,
+   e.g. `crm.<base>`), the API host and unknown hosts have none: always closed.
+2. That workspace must have assistants on.
+3. Every credential sent must belong to that same workspace: the bearer on
+   `/mcp` (its JWT `workspaceId`; an unreadable bearer or a session cookie
+   without bearer is refused), and on any `/oauth/*` path the `refresh_token`
+   / `token` JWTs and the authorization `code` (looked up as upstream stores
+   it, SHA-256 in `core.appToken`). Payloads are decoded without verification:
+   the gate only refuses, upstream verifies what passes.
+4. `grant_type=client_credentials` is refused on every host (confidential apps
+   installed in one workspace; no assistant uses it).
+
+`POST /mcp` with no credentials at all passes on an allowed host, so upstream
+answers `401` with the `WWW-Authenticate` discovery header. OAuth paths are
+matched case-insensitively and credentials are read from the body on any
+`/oauth/*` path, as Express routes `/OAuth/Token/` to the token endpoint too.
+`/.well-known/api-catalog` is closed with the rest (it points to the OAuth
+metadata).
+
+Consent: `WschatBridgeAuthorizeAppGuard`, a global guard, refuses the
+`authorizeApp` mutation (`NotFoundException`) unless the session's workspace,
+the one the code would be bound to, has assistants on.
+
+Switching off: the gate closes at once; `apply` (and every later `enforce`
+while off) also revokes every active authorization of OAuth-only applications
+in the workspace (dynamically registered MCP clients and the Twenty CLI) with
+upstream's `revokeAuthorizationByIdForWorkspace`, which drops the cached row.
+Their access tokens are checked against it on every request, so they stop
+working on REST and GraphQL as well, not only on `/mcp`; refresh fails too.
+Switching on again does not restore them: the person connects again. Grants of
+other applications are not touched; access tokens without a user
+(client-credentials) carry no grant and live until they expire
+(`APPLICATION_ACCESS_TOKEN_EXPIRES_IN`, 30 minutes by default).
+
+The gate does not depend on `WSCHAT_BRIDGE_SECRET`: with the bridge off,
+assistants are closed everywhere. API keys still work on REST/GraphQL; on
+`/mcp` they follow the same rule.
+
+Front: the AI settings show the MCP tab and the MCP card of the overview only
+when `GET /.well-known/oauth-protected-resource/mcp` on the same host answers
+(`modules/wschat/hooks/useWschatAssistantsAllowed.ts`).
 
 ## WSChat data model
 
@@ -517,6 +596,68 @@ Response: `{ "outcomes": { "added", "relabelled", "archived", "orphanOptions", "
 (outcomes counted on the conversation field). Errors: `400 DICTIONARY_INVALID`
 (message names the list and the problem), `409 DATA_MODEL_MISSING` (the field
 does not exist yet: run `enforce`), `409 SCHEMA_BUSY` (repeat later).
+
+## Starter layout
+
+What a new workspace looks like on day one, so it resembles the CRM working
+with WSChat; companies change it as they like
+(`services/wschat-bridge-starter-layout.service.ts`, definitions in
+`constants/wschat-bridge-starter-layout.constant.ts`).
+
+**Labels of shipped option lists.** Upstream does not translate option labels
+(`fieldMetadataOption` is not in `TRANSLATABLE_PROPERTIES_BY_METADATA_NAME`),
+so a Russian workspace showed `To do` / `In progress` / `Done`.
+
+| Field | Values → `ru` labels |
+| --- | --- |
+| `task.status` | `TODO` Открыта, `IN_PROGRESS` В работе, `DONE` Выполнена |
+| `opportunity.stage` | `NEW` Новая, `SCREENING` Квалификация, `MEETING` Встреча, `PROPOSAL` Предложение, `CUSTOMER` Клиент |
+
+- Only an option whose label still equals the shipped English one is
+  relabelled; a label the company changed is never overwritten. Values never
+  change (WSChat writes `TODO`/`DONE`), and a label-only change leaves the
+  enum column alone (`field-metadata-option-enum-schema.service.ts`).
+- Written with `updateOneField` as the workspace's custom application, which
+  makes it a workspace *override* of the standard option
+  (`compute-field-metadata-option-operations-for-field.util.ts`); the base
+  label stays as shipped. `synchronizeTwentyStandardApplicationOrThrow` runs at
+  workspace creation, not on upgrades; should a future upgrade command still
+  reset the labels to English, the rule "relabel while it reads as shipped"
+  runs on every `enforce` and puts them back, with no extra cost otherwise.
+
+**Starter views**, once per layout version:
+
+| Object | View | Shape |
+| --- | --- | --- |
+| task | By type / По типу | board grouped by `wschatType`, listed first (position −1); upstream's "By status" and the others stay |
+| wschatConversation | Open / Открытые | `state` is `OPEN`, newest `lastMessageAt` first |
+| wschatConversation | By outcome / По итогам | board grouped by `outcome` |
+| wschatCall | Missed / Пропущенные | `status` is `MISSED`, newest `startedAt` first |
+
+- Built with upstream's own view utils (`fromCreateViewInputToFlatViewToCreate`,
+  `buildCompleteViewChildrenFlatOperations`) and run as one workspace migration
+  per view through `WorkspaceMigrationValidateBuildAndRunService`, like the AI
+  tool's `CompleteViewUpsertService` (which takes no position and no universal
+  identifier). Each view has a fixed universal identifier and is owned by the
+  workspace custom application. Records are not touched.
+- Board columns: upstream creates one per active option when the view is
+  created and, when options change later, one per new option
+  (`recompute-view-groups-on-flat-field-metadata-options-update.util.ts`). It
+  appends them after every existing column, the placeholder and "no value"
+  included, so after each `PUT …/dictionaries` that really changed a field the
+  bridge reorders only OUR boards still grouped by that field: known columns
+  keep the company's order, new ones follow in dictionary order, then the
+  placeholder `NOT_SET` (always hidden: nobody holds it) and "no value" last.
+  Archived dictionary entries keep their column (they are still options).
+- Once: the applied version is a `core.keyValuePair` row of the workspace
+  (`CONFIG_VARIABLE`, key `WSCHAT_STARTER_LAYOUT_VERSION`). A workspace gets
+  only views of versions above it, so a view the company deleted or changed
+  is never brought back. The version is written only when every view of it
+  exists; a run that failed part-way creates the missing ones next time and
+  skips those already there (by universal identifier). A view deleted by the
+  company between such a failure and its retry would come back once.
+- To ship more later: raise `WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION` and tag the
+  new views with it.
 
 ## Workflows
 

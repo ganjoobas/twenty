@@ -11,6 +11,7 @@ import {
 } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-data-model.constant';
 import { WSCHAT_BRIDGE_ERROR_CODES } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-error-codes.constant';
 import { type WschatBridgeDictionariesInput } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-dictionaries.input';
+import { WschatBridgeStarterViewsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-starter-views.service';
 import { WschatBridgeWorkspaceLookupService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-lookup.service';
 import {
   findDictionaryItemsProblem,
@@ -38,6 +39,7 @@ export class WschatBridgeDictionariesService {
     private readonly workspaceCacheService: WorkspaceCacheService,
     private readonly fieldMetadataService: FieldMetadataService,
     private readonly workspaceLookupService: WschatBridgeWorkspaceLookupService,
+    private readonly starterViewsService: WschatBridgeStarterViewsService,
   ) {}
 
   async apply(
@@ -161,6 +163,11 @@ export class WschatBridgeDictionariesService {
         }),
       );
       migrationCount++;
+      await this.alignStarterBoards({
+        workspaceId,
+        fieldUniversalIdentifier: field.universalIdentifier,
+        previousOptionValues: currentOptions.map(({ value }) => value),
+      });
     }
 
     this.logger.log(
@@ -176,5 +183,31 @@ export class WschatBridgeDictionariesService {
         total: 0,
       }
     );
+  }
+
+  // Upstream already added a column per new option; only their order on our boards is fixed, and a failure there
+  // must not fail the dictionary
+  private async alignStarterBoards({
+    workspaceId,
+    fieldUniversalIdentifier,
+    previousOptionValues,
+  }: {
+    workspaceId: string;
+    fieldUniversalIdentifier: string;
+    previousOptionValues: string[];
+  }): Promise<void> {
+    try {
+      await retryWhileSchemaBusy(() =>
+        this.starterViewsService.alignBoardsAfterOptionsChange({
+          workspaceId,
+          fieldUniversalIdentifier,
+          previousOptionValues,
+        }),
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Workspace ${workspaceId}: starter board columns not aligned: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 }

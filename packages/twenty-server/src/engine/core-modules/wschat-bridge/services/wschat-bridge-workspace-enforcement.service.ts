@@ -12,6 +12,7 @@ import { WorkspaceInvitationService } from 'src/engine/core-modules/workspace-in
 import { WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-managed-roles.constant';
 import { WSCHAT_BRIDGE_ERROR_CODES } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-error-codes.constant';
 import { type WschatBridgeEnforceReportDTO } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-enforce-report.dto';
+import { WschatBridgeAssistantsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-assistants.service';
 import { WschatBridgeApiKeysService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-api-keys.service';
 import { WschatBridgeManagedRoleService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-managed-role.service';
 import { WschatBridgeMembershipService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-membership.service';
@@ -22,6 +23,7 @@ import {
   type WschatBridgeDataModelResult,
   WschatBridgeDataModelService,
 } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-data-model.service';
+import { WschatBridgeStarterLayoutService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-starter-layout.service';
 import { WschatBridgeServiceUserService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-service-user.service';
 import { WschatBridgeWorkspaceLookupService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-lookup.service';
 import { WschatBridgeWorkspaceSettingsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-settings.service';
@@ -56,6 +58,8 @@ export class WschatBridgeWorkspaceEnforcementService {
     private readonly dataModelService: WschatBridgeDataModelService,
     private readonly onboardingService: WschatBridgeOnboardingService,
     private readonly workspaceSettingsService: WschatBridgeWorkspaceSettingsService,
+    private readonly assistantsService: WschatBridgeAssistantsService,
+    private readonly starterLayoutService: WschatBridgeStarterLayoutService,
   ) {}
 
   async enforce(
@@ -63,10 +67,21 @@ export class WschatBridgeWorkspaceEnforcementService {
     {
       adminRoleLabel,
       locale,
-    }: { adminRoleLabel?: string; locale?: WschatBridgeLocale },
+      assistantsEnabled,
+    }: {
+      adminRoleLabel?: string;
+      locale?: WschatBridgeLocale;
+      assistantsEnabled?: boolean;
+    },
   ): Promise<WschatBridgeEnforceReportDTO> {
     const workspace =
       await this.workspaceLookupService.findProvisionedOrThrow(workspaceId);
+
+    // First, so a later failing step never leaves assistants open
+    const assistants = await this.assistantsService.apply(
+      workspace.id,
+      assistantsEnabled,
+    );
 
     const serviceUserAdded = await this.ensureServiceUserIsAdmin(workspace);
 
@@ -94,7 +109,14 @@ export class WschatBridgeWorkspaceEnforcementService {
     // Last on purpose: every lockdown step above has already been applied when the data model fails
     const dataModel = await this.ensureDataModelOrThrow(workspace.id, locale);
 
+    // Needs our fields, so after the data model; reports its failures instead of throwing
+    const starterLayout = await this.starterLayoutService.apply({
+      workspaceId: workspace.id,
+      locale: locale ?? 'en',
+    });
+
     const report: WschatBridgeEnforceReportDTO = {
+      ...assistants,
       serviceUserAdded,
       adminRoleCreated: companyAdminRole.created,
       adminRoleFlagsFixed: companyAdminRole.fixed,
@@ -110,6 +132,7 @@ export class WschatBridgeWorkspaceEnforcementService {
       webhooks,
       sso: 'not checked',
       ...dataModel,
+      ...starterLayout,
     };
 
     this.logger.log(

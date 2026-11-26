@@ -1,7 +1,8 @@
 import { NavigationButton } from '@/ui/input/components/NavigationButton';
 import { getSettingsAiTabs } from '@/settings/ai/utils/getSettingsAiTabs';
-// WSChat fork: no Usage tab, see WSCHAT.md
+// WSChat fork: no Usage tab, MCP only where assistants are allowed, see WSCHAT.md
 import { WSCHAT_HIDDEN_FEATURES } from '@/wschat/constants/WschatHiddenFeatures';
+import { useWschatAssistantsAllowed } from '@/wschat/hooks/useWschatAssistantsAllowed';
 import { SettingsAiWorkspaceAssistantSection } from '~/pages/settings/ai/components/SettingsAiWorkspaceAssistantSection';
 
 import { SettingsDiscoveryHeroCard } from '@/settings/components/SettingsDiscoveryHeroCard';
@@ -50,10 +51,12 @@ export const SettingsAI = () => {
     FeatureFlagKey.IS_AI_CHAT_INBOX_ENABLED,
   );
   // WSChat fork: a hidden tab's hash falls back to the first tab
+  const isAssistantsAllowed = useWschatAssistantsAllowed() === true;
   const tabs = getSettingsAiTabs(isInboxEnabled).filter(
     (tab) =>
-      !WSCHAT_HIDDEN_FEATURES.aiUsage ||
-      tab.id !== SETTINGS_AI_TABS.TABS_IDS.USAGE,
+      (!WSCHAT_HIDDEN_FEATURES.aiUsage ||
+        tab.id !== SETTINGS_AI_TABS.TABS_IDS.USAGE) &&
+      (isAssistantsAllowed || tab.id !== SETTINGS_AI_TABS.TABS_IDS.MCP),
   );
   const activeTabId = useSettingsActiveTabId(
     SETTINGS_AI_TABS.COMPONENT_INSTANCE_ID,
@@ -80,7 +83,7 @@ export const SettingsAI = () => {
         secondaryBar={secondaryBar}
         avatarSection={<SettingsAiWorkspaceAssistantSection />}
         behaviorSection={<SettingsAiWorkspaceBehaviorSection />}
-        mcpSection={<SettingsAiMcpSection />}
+        mcpSection={isAssistantsAllowed ? <SettingsAiMcpSection /> : null}
         workspaceInstructionsSection={
           <SettingsAiWorkspaceInstructionsSection />
         }

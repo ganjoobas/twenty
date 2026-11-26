@@ -21,6 +21,7 @@ import { WschatBridgeMemberUpsertService } from 'src/engine/core-modules/wschat-
 import { WschatBridgeOnboardingService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-onboarding.service';
 import { WschatBridgeSubdomainService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-subdomain.service';
 import { type WschatBridgeLocale } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-data-model.constant';
+import { WschatBridgeStarterLayoutService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-starter-layout.service';
 import { WschatBridgeDataModelService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-data-model.service';
 import { WschatBridgeServiceUserService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-service-user.service';
 import { WschatBridgeWorkspaceLookupService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-lookup.service';
@@ -64,6 +65,7 @@ export class WschatBridgeWorkspaceCreationService {
     private readonly memberUpsertService: WschatBridgeMemberUpsertService,
     private readonly onboardingService: WschatBridgeOnboardingService,
     private readonly dataModelService: WschatBridgeDataModelService,
+    private readonly starterLayoutService: WschatBridgeStarterLayoutService,
     private readonly workspaceLookupService: WschatBridgeWorkspaceLookupService,
   ) {}
 
@@ -114,6 +116,14 @@ export class WschatBridgeWorkspaceCreationService {
       workspace.id,
       input.locale ?? 'en',
     );
+
+    // Never throws; what failed is retried by enforce
+    if (dataModelReady) {
+      await this.starterLayoutService.apply({
+        workspaceId: workspace.id,
+        locale: input.locale ?? 'en',
+      });
+    }
 
     this.logger.log(
       `Workspace ${workspace.id}: created (subdomain ${workspace.subdomain}, status ${workspace.activationStatus}, data model ${dataModelReady ? 'ready' : 'pending'}), admin ${maskEmail(input.admin.email)}`,

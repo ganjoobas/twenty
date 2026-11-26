@@ -35,7 +35,7 @@ import { Avatar } from 'twenty-ui/primitives/data-display';
 import { useIsMobile } from 'twenty-ui/utilities';
 import { useNavigateSettings } from '~/hooks/useNavigateSettings';
 import { getAbsoluteImageUrl } from '~/utils/image/getAbsoluteImageUrl';
-// WSChat fork: no Log out and no Create Workspace, see WSCHAT.md
+// WSChat fork: no Log out, Create Workspace or Invite user, see WSCHAT.md
 import { WSCHAT_HIDDEN_FEATURES } from '@/wschat/constants/WschatHiddenFeatures';
 
 export const MultiWorkspaceDropdownDefaultComponents = () => {
@@ -193,16 +193,19 @@ export const MultiWorkspaceDropdownDefaultComponents = () => {
             {t`Open in`}
           </Dropdown.ActionItem>
         )}
-        <Dropdown.ActionItem
-          render={
-            <Link
-              to={`${getSettingsPath(SettingsPath.WorkspaceMembersPage)}#invite`}
-            />
-          }
-          startIcon={<IconUserPlus />}
-        >
-          {t`Invite user`}
-        </Dropdown.ActionItem>
+        {/* WSChat fork: people are invited only by WSChat */}
+        {!WSCHAT_HIDDEN_FEATURES.inviteUser && (
+          <Dropdown.ActionItem
+            render={
+              <Link
+                to={`${getSettingsPath(SettingsPath.WorkspaceMembersPage)}#invite`}
+              />
+            }
+            startIcon={<IconUserPlus />}
+          >
+            {t`Invite user`}
+          </Dropdown.ActionItem>
+        )}
         {isSupportChatConfigured && (
           <Dropdown.ActionItem
             startIcon={<IconMessage />}

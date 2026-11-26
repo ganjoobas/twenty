@@ -20,5 +20,7 @@ export class WschatBridgeWorkspaceDTO extends WschatBridgeCreatedWorkspaceDTO {
 
   activationStatus: WorkspaceActivationStatus;
 
+  assistantsEnabled: boolean;
+
   members: WschatBridgeMemberDTO[];
 }

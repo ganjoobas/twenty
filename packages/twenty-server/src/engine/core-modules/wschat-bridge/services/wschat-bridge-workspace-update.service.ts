@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { isDefined } from 'twenty-shared/utils';
 
+import { WschatBridgeAssistantsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-assistants.service';
 import { type WschatBridgeUpdateWorkspaceInput } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-update-workspace.input';
 import { WschatBridgeSubdomainService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-subdomain.service';
 import { WschatBridgeWorkspaceLookupService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-lookup.service';
@@ -15,6 +16,7 @@ export class WschatBridgeWorkspaceUpdateService {
     private readonly workspaceLookupService: WschatBridgeWorkspaceLookupService,
     private readonly subdomainService: WschatBridgeSubdomainService,
     private readonly workspaceSettingsService: WschatBridgeWorkspaceSettingsService,
+    private readonly assistantsService: WschatBridgeAssistantsService,
   ) {}
 
   async updateWorkspace(
@@ -54,10 +56,15 @@ export class WschatBridgeWorkspaceUpdateService {
       });
     }
 
+    if (isDefined(input.assistantsEnabled)) {
+      await this.assistantsService.apply(workspace.id, input.assistantsEnabled);
+    }
+
     const changedFields = [
       isDefined(displayName) ? 'displayName' : null,
       isDefined(subdomain) ? 'subdomain' : null,
       isDefined(embeddingOrigins) ? 'allowedEmbeddingOrigins' : null,
+      isDefined(input.assistantsEnabled) ? 'assistantsEnabled' : null,
     ].filter(isDefined);
 
     this.logger.log(

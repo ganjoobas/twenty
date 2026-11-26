@@ -1,6 +1,7 @@
 import {
   ArrayMaxSize,
   IsArray,
+  IsBoolean,
   IsOptional,
   IsString,
   Matches,
@@ -25,4 +26,9 @@ export class WschatBridgeUpdateWorkspaceInput {
   @ArrayMaxSize(100)
   @IsString({ each: true })
   allowedEmbeddingOrigins?: string[];
+
+  // As in enforce; lets WSChat close assistants without running a full enforce
+  @IsOptional()
+  @IsBoolean()
+  assistantsEnabled?: boolean;
 }

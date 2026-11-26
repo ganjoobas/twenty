@@ -19,7 +19,7 @@ defaults:
 
 env:
   BRIDGE_DIR: src/engine/core-modules/wschat-bridge
-  # Front files changed by the fork (embedding host links, hidden features, pinned Salesfarce)
+  # Front files changed by the fork (embedding host links, hidden features, pinned Salesfarce, MCP tab)
   FRONT_FILES: >-
     src/modules/ui/field/display/utils/postLinkToEmbeddingHost.ts
     src/modules/ui/field/display/utils/handleEmbeddingHostLinkClick.ts
@@ -29,6 +29,8 @@ env:
     src/modules/wschat/constants/WschatHiddenFeatures.ts
     src/modules/wschat/utils/wschatSalesfarcePin.ts
     src/modules/wschat/utils/__tests__/wschatSalesfarcePin.test.tsx
+    src/modules/wschat/hooks/useWschatAssistantsAllowed.ts
+    src/modules/wschat/hooks/__tests__/useWschatAssistantsAllowed.test.ts
     src/modules/salesfarce/states/salesfarceIsActiveState.ts
     src/modules/salesfarce/utils/salesfarceEnter.ts
     src/modules/workspace-member/hooks/useColorScheme.ts
@@ -87,6 +89,7 @@ jobs:
           npx jest \
             src/modules/ui/field/display/utils/__tests__/handleEmbeddingHostLinkClick.test.ts \
             src/modules/wschat/utils/__tests__/wschatSalesfarcePin.test.tsx \
+            src/modules/wschat/hooks/__tests__/useWschatAssistantsAllowed.test.ts \
             src/pages/settings/profile/appearance/components/__tests__/SalesfarceSettingsAppearance.test.tsx \
             src/modules/salesfarce/utils/__tests__/salesfarceConsumeRequest.test.ts \
             src/modules/settings/hooks/__tests__/useSettingsNavigationItems.test.tsx \

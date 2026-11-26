@@ -1,4 +1,10 @@
 export class WschatBridgeEnforceReportDTO {
+  // State after this call; applied first, before every other step
+  assistantsEnabled: boolean;
+
+  // While off: assistant grants revoked by this call (their tokens stop at once)
+  assistantAuthorizationsRevoked: number;
+
   serviceUserAdded: boolean;
 
   adminRoleCreated: boolean;
@@ -47,4 +53,16 @@ export class WschatBridgeEnforceReportDTO {
 
   // Nothing of the model is missing or blocked after this call; repeat enforce until true before writing records
   dataModelReady: boolean;
+
+  // Starter views created by this call ("task.byType"); once per layout version
+  starterLayoutCreated: string[];
+
+  // Standard option lists whose shipped English labels were translated ("task.status")
+  starterLayoutRelabelled: string[];
+
+  // Starter layout steps that failed (name: reason); the next enforce retries them
+  starterLayoutFailed: string[];
+
+  // Highest starter layout version applied to the workspace
+  starterLayoutVersion: number;
 }

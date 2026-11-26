@@ -3,7 +3,8 @@ type WschatHiddenFeature =
   | 'aiUsage'
   | 'signOut'
   | 'createWorkspace'
-  | 'deleteAccount';
+  | 'deleteAccount'
+  | 'inviteUser';
 
 // The CRM is used only inside a WSChat frame, so these upstream features are hidden; see WSCHAT.md
 export const WSCHAT_HIDDEN_FEATURES: Record<WschatHiddenFeature, boolean> = {
@@ -18,4 +19,6 @@ export const WSCHAT_HIDDEN_FEATURES: Record<WschatHiddenFeature, boolean> = {
   // People are managed by WSChat: self-deletion would drop the person from
   // every company's CRM, and the next sync would recreate them
   deleteAccount: true,
+  // People are invited only by WSChat; the item only led back to the profile
+  inviteUser: true,
 };

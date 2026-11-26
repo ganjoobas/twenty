@@ -19,6 +19,15 @@ This repository is upstream [Twenty](https://github.com/twentyhq/twenty) at tag
   each workspace and issues WSChat its own records-API key.
   Closed lists are SELECT fields for workflow filters; outcome and task-type
   options are kept per company through `PUT …/dictionaries`.
+  External assistants (MCP, OAuth, `authorizeApp`) are closed unless WSChat
+  allows them for the workspace; the module binds its own middleware and a
+  global guard for that, no upstream file is edited (README, "External
+  assistants").
+  New workspaces get a starter layout once: translated labels of the shipped
+  task status and opportunity stage lists (as workspace overrides, only while
+  they read as shipped) and four views (tasks by type, open conversations,
+  conversations by outcome, missed calls), all through upstream's metadata
+  services (README, "Starter layout").
 - `auth/constants/max-workspaces-without-organization-key.constant.ts`: the
   number of workspaces allowed without an enterprise key is raised from 5 to
   10000, because every WSChat client company gets its own workspace.
@@ -55,6 +64,12 @@ This repository is upstream [Twenty](https://github.com/twentyhq/twenty) at tag
   - Delete account in the profile (`SettingsProfile.tsx`; the server mutation
     is untouched): people are managed by WSChat, self-deletion would drop the
     person from every company's CRM and the next sync would recreate them.
+  - Invite user in the workspace menu (`MultiWorkspaceDropdownDefaultComponents.tsx`):
+    people are invited only by WSChat; the item only led back to the profile.
+- `twenty-front`: the MCP tab of AI settings and the MCP card of its overview
+  are shown only where the server lets assistants in (`SettingsAI.tsx`,
+  `modules/wschat/hooks/useWschatAssistantsAllowed.ts`: one request to
+  `/.well-known/oauth-protected-resource/mcp`, `404` when not allowed).
 - `twenty-front`, Salesfarce theme: upstream keeps it for one reload
   (`sessionStorage`); here the choice is also pinned in `localStorage`
   (`modules/wschat/utils/wschatSalesfarcePin.ts`), read by

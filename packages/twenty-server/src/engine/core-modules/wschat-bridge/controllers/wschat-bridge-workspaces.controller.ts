@@ -34,6 +34,7 @@ import { type WschatBridgeServiceKeyDTO } from 'src/engine/core-modules/wschat-b
 import { WschatBridgeExceptionFilter } from 'src/engine/core-modules/wschat-bridge/filters/wschat-bridge-exception.filter';
 import { WschatBridgeServiceUserConfiguredGuard } from 'src/engine/core-modules/wschat-bridge/guards/wschat-bridge-service-user-configured.guard';
 import { WschatBridgeSecretGuard } from 'src/engine/core-modules/wschat-bridge/guards/wschat-bridge-secret.guard';
+import { WschatBridgeAssistantsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-assistants.service';
 import { WschatBridgeApiKeysService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-api-keys.service';
 import {
   type WschatBridgeDictionariesResult,
@@ -72,6 +73,7 @@ export class WschatBridgeWorkspacesController {
     private readonly workspaceEnforcementService: WschatBridgeWorkspaceEnforcementService,
     private readonly apiKeysService: WschatBridgeApiKeysService,
     private readonly dictionariesService: WschatBridgeDictionariesService,
+    private readonly assistantsService: WschatBridgeAssistantsService,
   ) {}
 
   @Post()
@@ -156,6 +158,7 @@ export class WschatBridgeWorkspacesController {
     return this.workspaceEnforcementService.enforce(workspaceId, {
       adminRoleLabel: body.adminRoleLabel,
       locale: body.locale,
+      assistantsEnabled: body.assistantsEnabled,
     });
   }
 
@@ -171,6 +174,7 @@ export class WschatBridgeWorkspacesController {
       subdomain: workspace.subdomain,
       url: this.workspaceLookupService.buildUrl(workspace),
       activationStatus: workspace.activationStatus,
+      assistantsEnabled: await this.assistantsService.isEnabled(workspace.id),
       members: await this.memberReadService.listMembers(workspace),
     };
   }

@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsIn,
   IsOptional,
   IsString,
@@ -24,4 +25,9 @@ export class WschatBridgeEnforceInput {
     message: `locale must be one of: ${WSCHAT_BRIDGE_LOCALES.join(', ')}`,
   })
   locale?: WschatBridgeLocale;
+
+  // External assistants (MCP / OAuth); absent leaves the current state
+  @IsOptional()
+  @IsBoolean()
+  assistantsEnabled?: boolean;
 }
