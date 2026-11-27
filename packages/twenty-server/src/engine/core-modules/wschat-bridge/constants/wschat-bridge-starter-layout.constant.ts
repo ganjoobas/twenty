@@ -8,6 +8,7 @@ import {
 import {
   WSCHAT_BRIDGE_CALL_OBJECT,
   WSCHAT_BRIDGE_CONVERSATION_OBJECT,
+  WSCHAT_BRIDGE_ICON,
   type WschatBridgeLocalizedText,
 } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-data-model.constant';
 
@@ -16,13 +17,33 @@ export const WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION_KEY =
   'WSCHAT_STARTER_LAYOUT_VERSION';
 
 // Raise it with new views tagged with the new number; a workspace only gets views newer than what it has
-export const WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION = 6;
+export const WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION = 7;
 
 // Version that switches off upstream's sample workflows (WschatBridgeSampleWorkflowsService)
 export const WSCHAT_BRIDGE_SAMPLE_WORKFLOWS_LAYOUT_VERSION = 3;
 
 // Version that adds the switched-off samples acting in WSChat; needs `actions` in the request
 export const WSCHAT_BRIDGE_SAMPLE_ACTIONS_LAYOUT_VERSION = 4;
+
+// Version that gives existing fields their new icon; new workspaces get it from the field definition
+export const WSCHAT_BRIDGE_FIELD_ICONS_LAYOUT_VERSION = 7;
+
+export type WschatBridgeFieldIconDefinition = {
+  reportName: string;
+  fieldUniversalIdentifier: string;
+  // Only a field still showing the icon it was created with is changed
+  factory: string;
+  icon: string;
+};
+
+export const WSCHAT_BRIDGE_FIELD_ICONS: WschatBridgeFieldIconDefinition[] = [
+  {
+    reportName: 'task.wschatShow',
+    fieldUniversalIdentifier: '64300b05-7c47-4a9e-a723-48a1d9225e0b',
+    factory: 'IconMessageShare',
+    icon: WSCHAT_BRIDGE_ICON,
+  },
+];
 
 export type WschatBridgeStarterLayoutKeyValueTypesMap = {
   [WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION_KEY]: number;

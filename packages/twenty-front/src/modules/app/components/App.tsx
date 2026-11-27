@@ -7,6 +7,7 @@ import { AppRootErrorFallback } from '@/error-handler/components/AppRootErrorFal
 import { ExceptionHandlerProvider } from '@/error-handler/components/ExceptionHandlerProvider';
 import { ClickOutsideListenerContext } from '@/ui/utilities/pointer-event/contexts/ClickOutsideListenerContext';
 import { jotaiStore } from '@/ui/utilities/state/jotai/jotaiStore';
+import { WSCHAT_ICONS } from '@/wschat/constants/WschatIcons';
 import { HelmetProvider } from '@dr.pogodin/react-helmet';
 import { i18n } from '@lingui/core';
 import { I18nProvider } from '@lingui/react';
@@ -29,7 +30,8 @@ export const App = () => {
             <LocaleDirectionProvider>
               <ApolloDevLogEffect />
               <ToastProvider>
-                <IconsProvider>
+                {/* WSChat fork: our icons by name (WSCHAT.md) */}
+                <IconsProvider extraIcons={WSCHAT_ICONS}>
                   <ExceptionHandlerProvider>
                     <HelmetProvider>
                       <ClickOutsideListenerContext.Provider

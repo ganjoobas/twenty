@@ -56,6 +56,7 @@ import { WorkspaceOrmManager } from 'src/engine/twenty-orm/workspace-orm.manager
 import { type WorkspaceRepository } from 'src/engine/twenty-orm/repository/workspace-repository';
 import { ApplicationTranslationCatalogService } from 'src/engine/metadata-modules/application-translation-catalog/services/application-translation-catalog.service';
 import { resolveEffectiveFlatEntityProperty } from 'src/engine/metadata-modules/overrides/utils/resolve-effective-flat-entity-property.util';
+import { excludeWschatServiceMemberFromFilter } from 'src/engine/core-modules/wschat-bridge/utils/exclude-wschat-service-member.util';
 
 type LastRanks = { tsRankCD: number; tsRank: number };
 
@@ -125,7 +126,14 @@ export class SearchService {
                   searchTerms: formatSearchTerms(searchInput, 'and'),
                   searchTermsOr: formatSearchTerms(searchInput, 'or'),
                   limit: limit as number,
-                  filter: filter ?? ({} as ObjectRecordFilter),
+                  // WSChat fork: the service member is never offered in pickers (WSCHAT.md)
+                  filter: excludeWschatServiceMemberFromFilter(
+                    flatObjectMetadata.nameSingular,
+                    filter ?? ({} as ObjectRecordFilter),
+                    this.twentyConfigService.get(
+                      'WSCHAT_BRIDGE_SERVICE_USER_EMAIL',
+                    ),
+                  ),
                   after,
                 }),
               };

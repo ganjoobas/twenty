@@ -89,6 +89,13 @@ describe('WschatBridgeStarterLayoutService', () => {
     ),
   };
 
+  const fieldIconsService = {
+    apply: jest.fn(async () => ({
+      changed: ['task.wschatShow'],
+      skipped: [] as string[],
+    })),
+  };
+
   const service = new WschatBridgeStarterLayoutService(
     keyValuePairService as never,
     workspaceCacheService as never,
@@ -98,6 +105,7 @@ describe('WschatBridgeStarterLayoutService', () => {
     sampleWorkflowsService as never,
     sampleActionWorkflowsService as never,
     indexViewRevertService as never,
+    fieldIconsService as never,
   );
 
   beforeEach(() => {
@@ -145,7 +153,7 @@ describe('WschatBridgeStarterLayoutService', () => {
     expect(second.starterLayoutCreated).toEqual([]);
   });
 
-  it('should give a workspace at version 4 only the main views of versions 5 and 6', async () => {
+  it('should give a workspace at version 4 only the main views of versions 5 and 6 and the icons of 7', async () => {
     storedVersion = 4;
 
     const result = await service.apply({
@@ -171,12 +179,13 @@ describe('WschatBridgeStarterLayoutService', () => {
       'wschatConversation.main',
       'task.index',
       'task.byType.show',
+      'task.wschatShow',
     ]);
     expect(result.starterLayoutSkipped).toEqual([
       'wschatCall.index',
       'wschatCall.main',
     ]);
-    expect(storedVersion).toBe(6);
+    expect(storedVersion).toBe(7);
   });
 
   it('should give a workspace at version 2 only the workflow switch-off, and keep 2 if it fails', async () => {
@@ -281,6 +290,30 @@ describe('WschatBridgeStarterLayoutService', () => {
     expect(result.starterLayoutFailed).toEqual(['views: db down']);
   });
 
+  it('should change field icons only at version 7, and keep 6 if that fails', async () => {
+    storedVersion = 6;
+    fieldIconsService.apply.mockRejectedValueOnce(new Error('locked'));
+
+    const failed = await service.apply({
+      workspaceId: WORKSPACE_ID,
+      locale: 'ru',
+      actions: ACTIONS,
+    });
+
+    expect(starterIndexViewsService.apply).not.toHaveBeenCalled();
+    expect(failed.starterLayoutFailed).toEqual(['field icons: locked']);
+    expect(storedVersion).toBe(6);
+
+    const retried = await service.apply({
+      workspaceId: WORKSPACE_ID,
+      locale: 'ru',
+      actions: ACTIONS,
+    });
+
+    expect(retried.starterLayoutChanged).toEqual(['task.wschatShow']);
+    expect(storedVersion).toBe(7);
+  });
+
   it('should create the action samples once, and wait for a call bringing actions', async () => {
     storedVersion = 3;
 
@@ -309,7 +342,7 @@ describe('WschatBridgeStarterLayoutService', () => {
       'workflowSample.closedConversationMessage',
       'workflowSample.scheduledReminder',
     ]);
-    expect(storedVersion).toBe(6);
+    expect(storedVersion).toBe(7);
   });
 
   // The live defect of image 11: creation brings no actions, so nothing was recorded and every enforce

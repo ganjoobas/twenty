@@ -6,6 +6,7 @@ import { KeyValuePairType } from 'src/engine/core-modules/key-value-pair/key-val
 import { KeyValuePairService } from 'src/engine/core-modules/key-value-pair/key-value-pair.service';
 import { type WschatBridgeLocale } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-data-model.constant';
 import {
+  WSCHAT_BRIDGE_FIELD_ICONS_LAYOUT_VERSION,
   WSCHAT_BRIDGE_INDEX_VIEWS,
   WSCHAT_BRIDGE_SAMPLE_ACTIONS_LAYOUT_VERSION,
   WSCHAT_BRIDGE_SAMPLE_WORKFLOWS_LAYOUT_VERSION,
@@ -16,6 +17,7 @@ import {
   type WschatBridgeStandardOptionLabels,
   type WschatBridgeStarterLayoutKeyValueTypesMap,
 } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-starter-layout.constant';
+import { WschatBridgeFieldIconsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-field-icons.service';
 import { WschatBridgeIndexViewRevertService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-index-view-revert.service';
 import { WschatBridgeSampleActionWorkflowsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-sample-action-workflows.service';
 import { type WschatBridgeActionsTarget } from 'src/engine/core-modules/wschat-bridge/utils/build-sample-action-workflows.util';
@@ -72,6 +74,7 @@ export class WschatBridgeStarterLayoutService {
     private readonly sampleWorkflowsService: WschatBridgeSampleWorkflowsService,
     private readonly sampleActionWorkflowsService: WschatBridgeSampleActionWorkflowsService,
     private readonly indexViewRevertService: WschatBridgeIndexViewRevertService,
+    private readonly fieldIconsService: WschatBridgeFieldIconsService,
   ) {}
 
   async apply({
@@ -294,6 +297,19 @@ export class WschatBridgeStarterLayoutService {
         result.starterLayoutFailed.push(
           `action samples: ${describeError(error)}`,
         );
+
+        return false;
+      }
+    }
+
+    if (version === WSCHAT_BRIDGE_FIELD_ICONS_LAYOUT_VERSION) {
+      try {
+        const icons = await this.fieldIconsService.apply(workspaceId);
+
+        result.starterLayoutChanged.push(...icons.changed);
+        result.starterLayoutSkipped.push(...icons.skipped);
+      } catch (error) {
+        result.starterLayoutFailed.push(`field icons: ${describeError(error)}`);
 
         return false;
       }

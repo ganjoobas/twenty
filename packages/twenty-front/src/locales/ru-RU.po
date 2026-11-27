@@ -13770,7 +13770,7 @@ msgstr "Используется запасной вариант"
 #: src/modules/side-panel/pages/page-layout/hooks/useChartSettingsValues.ts
 #: src/modules/ui/field/display/components/BooleanDisplay.tsx
 msgid "False"
-msgstr "Ложь"
+msgstr "Нет"
 
 #. js-lingui-id: KziH2K
 #: src/modules/ai/utils/getAiModelTierLabel.ts
@@ -31382,12 +31382,12 @@ msgstr "Запускает функцию HTTP-запросом"
 #: src/modules/side-panel/pages/page-layout/hooks/useChartSettingsValues.ts
 #: src/modules/ui/field/display/components/BooleanDisplay.tsx
 msgid "True"
-msgstr "Истина"
+msgstr "Да"
 
 #. js-lingui-id: qaK9ds
 #: src/modules/object-record/record-form/components/RecordFormBooleanFieldInput.tsx
 msgid "True or false"
-msgstr "Истина или ложь"
+msgstr "Да или нет"
 
 #. js-lingui-id: EsFbDC
 #: src/modules/validation-rules/constants/ValidationRuleFunctionDescriptions.ts

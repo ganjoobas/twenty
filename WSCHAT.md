@@ -96,6 +96,24 @@ This repository is upstream [Twenty](https://github.com/twentyhq/twenty) at tag
   `useColorScheme.ts` once Light, Dark or System is saved (that still reloads
   out of the theme). Without storage the theme just is not pinned. The
   "Enterprise only" badge is not shown (`SettingsAppearanceOption.tsx`).
+- The service user is never offered as a person to pick (assignee, owner,
+  account owner, "@" mentions, member filters, the members page); records it
+  already authored keep "WSChat". Three server edits, the address read from
+  `WSCHAT_BRIDGE_SERVICE_USER_EMAIL`
+  (`wschat-bridge/utils/exclude-wschat-service-member.util.ts`):
+  `search/services/search.service.ts` (record pickers and mentions go through
+  `search`, which runs no query hooks), `user/user.resolver.ts`
+  (`workspaceMembers` of the current user, the local member list of the front)
+  and the module's own `workspaceMember.findMany` pre-query hook, for people in
+  the app only: WSChat reads the full list with its records key.
+- `twenty-front`, Russian: boolean values read «Да»/«Нет» instead of
+  «Истина»/«Ложь» (`locales/ru-RU.po`, `True`, `False`, `True or false`, and the
+  compiled `locales/generated/ru-RU.ts`; the image recompiles from the `.po`).
+  An upstream catalog update brings them back: `wschatRussianBooleanLabels.test.tsx`
+  fails then.
+- Icon `IconWschat` (WSChat's favicon, own colours on both themes) for our
+  fields: `twenty-ui` `IconsProvider.tsx` takes `extraIcons` added to the
+  registry, `App.tsx` passes `modules/wschat/constants/WschatIcons.ts`.
 - `.github/workflows/wschat-check.yml`: typecheck, unit tests and lint for the
   bridge module and the front changes on every push to a `wschat/**` branch
   (the image build itself does not typecheck).

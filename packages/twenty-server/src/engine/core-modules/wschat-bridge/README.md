@@ -108,6 +108,11 @@ people or loosen sign-in.
   `GET`, refused by `PUT`/`DELETE …/members` and by the login link
   (`409 SERVICE_USER`). When the variable is empty every workspace endpoint
   answers `503 SERVICE_USER_NOT_CONFIGURED`; the login link keeps working.
+  In the app it is never offered as a person to pick: record pickers and
+  mentions (`search`), the front's member list (`currentUser.workspaceMembers`)
+  and `workspaceMember` findMany for people (`query-hooks/`, filters, members
+  page) leave it out by `userEmail`; API keys still see it. Records it
+  authored keep "WSChat" (actor name, not a lookup).
 - **Company-admin role.** Bridge role `admin` is a custom role with the fixed
   universal identifier `fa1f5cda-89e7-4647-9ab5-210407f4aa5b`, label
   `Company admin` unless `adminRoleLabel` (≤ 50 characters) is given. Same
@@ -837,6 +842,12 @@ view. Standard objects have only the INDEX table.
   27.11; earlier workspaces have them at 1–2), so they never tie with the
   initial view.
 - Report: `starterLayoutChanged` (main views written), `starterLayoutSkipped`.
+
+**Field icons** (version 7, `services/wschat-bridge-field-icons.service.ts`):
+`task.wschatShow` gets `IconWschat` (the fork's front registers it, WSCHAT.md)
+while it still has `IconMessageShare`, the icon it was created with; another
+icon is the company's (`starterLayoutSkipped`). New workspaces create the
+field with `IconWschat` already. Changed: `starterLayoutChanged`.
 
 **Sample workflows** (version 3, `services/wschat-bridge-sample-workflows.service.ts`):
 upstream's `prefillWorkflows` creates "Quick Lead" (manual) and "Create company

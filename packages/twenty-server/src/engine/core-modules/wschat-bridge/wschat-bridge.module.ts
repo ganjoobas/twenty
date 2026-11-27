@@ -41,6 +41,7 @@ import { WschatBridgeAuthorizeAppGuard } from 'src/engine/core-modules/wschat-br
 import { WschatBridgeSecretGuard } from 'src/engine/core-modules/wschat-bridge/guards/wschat-bridge-secret.guard';
 import { WschatBridgeServiceUserConfiguredGuard } from 'src/engine/core-modules/wschat-bridge/guards/wschat-bridge-service-user-configured.guard';
 import { WschatBridgeAssistantsGateMiddleware } from 'src/engine/core-modules/wschat-bridge/middlewares/wschat-bridge-assistants-gate.middleware';
+import { WschatWorkspaceMemberFindManyPreQueryHook } from 'src/engine/core-modules/wschat-bridge/query-hooks/wschat-workspace-member-find-many.pre-query.hook';
 import { WschatBridgeAssistantsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-assistants.service';
 import { WschatBridgeApiKeysService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-api-keys.service';
 import { WschatBridgeManagedRoleService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-managed-role.service';
@@ -67,6 +68,7 @@ import { WschatBridgeWorkspaceCreationService } from 'src/engine/core-modules/ws
 import { WschatBridgeWorkspaceEnforcementService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-enforcement.service';
 import { WschatBridgeWorkspaceLookupService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-lookup.service';
 import { WschatBridgeWorkspaceSettingsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-settings.service';
+import { WschatBridgeFieldIconsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-field-icons.service';
 import { WschatBridgeIndexViewRevertService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-index-view-revert.service';
 import { WschatBridgeWorkspaceSessionsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-sessions.service';
 import { WschatBridgeMemberListService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-member-list.service';
@@ -159,6 +161,8 @@ import { WorkspaceMigrationModule } from 'src/engine/workspace-manager/workspace
     WschatBridgeWorkspaceSessionsService,
     WschatBridgeMemberListService,
     WschatBridgeIndexViewRevertService,
+    WschatWorkspaceMemberFindManyPreQueryHook,
+    WschatBridgeFieldIconsService,
     { provide: APP_GUARD, useClass: WschatBridgeAuthorizeAppGuard },
     // Not exported by TwoFactorAuthenticationModule; both need only core repositories, so they are provided here
     TwoFactorAuthenticationBackupCodeService,

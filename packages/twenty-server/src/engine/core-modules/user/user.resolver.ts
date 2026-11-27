@@ -31,6 +31,7 @@ import {
   OnboardingStepKeys,
 } from 'src/engine/core-modules/onboarding/onboarding.service';
 import { TwentyConfigService } from 'src/engine/core-modules/twenty-config/twenty-config.service';
+import { isWschatServiceMemberEmail } from 'src/engine/core-modules/wschat-bridge/utils/exclude-wschat-service-member.util';
 import { buildTwoFactorAuthenticationMethodSummary } from 'src/engine/core-modules/two-factor-authentication/utils/two-factor-authentication-method.presenter';
 import { UserWorkspaceEntity } from 'src/engine/core-modules/user-workspace/user-workspace.entity';
 import { UserWorkspaceService } from 'src/engine/core-modules/user-workspace/user-workspace.service';
@@ -287,9 +288,15 @@ export class UserResolver {
       return [];
     }
 
-    const workspaceMemberEntities = await this.userService.loadWorkspaceMembers(
-      workspace,
-      false,
+    // WSChat fork: the service member stays out of the people lists (WSCHAT.md)
+    const workspaceMemberEntities = (
+      await this.userService.loadWorkspaceMembers(workspace, false)
+    ).filter(
+      (entity) =>
+        !isWschatServiceMemberEmail(
+          entity.userEmail,
+          this.twentyConfigService.get('WSCHAT_BRIDGE_SERVICE_USER_EMAIL'),
+        ),
     );
 
     const userWorkspaces = await this.userWorkspaceRepository.find({

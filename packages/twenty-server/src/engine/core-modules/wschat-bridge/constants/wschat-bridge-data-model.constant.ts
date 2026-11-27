@@ -7,6 +7,9 @@ export type WschatBridgeLocale = (typeof WSCHAT_BRIDGE_LOCALES)[number];
 
 export type WschatBridgeLocalizedText = Record<WschatBridgeLocale, string>;
 
+// Our own icon, registered by the fork's front (modules/wschat/constants/WschatIcons.ts)
+export const WSCHAT_BRIDGE_ICON = 'IconWschat';
+
 export type WschatBridgeObjectDefinition = {
   universalIdentifier: string;
   nameSingular: string;
@@ -365,7 +368,7 @@ export const WSCHAT_BRIDGE_FIELDS: WschatBridgeFieldDefinition[] = [
     universalIdentifier: '64300b05-7c47-4a9e-a723-48a1d9225e0b',
     name: 'wschatShow',
     type: BOOLEAN,
-    icon: 'IconMessageShare',
+    icon: WSCHAT_BRIDGE_ICON,
     label: { en: 'Show in WSChat', ru: 'Показать в WSChat' },
     description: {
       en: 'The task appears in WSChat tasks and is kept in sync both ways',
