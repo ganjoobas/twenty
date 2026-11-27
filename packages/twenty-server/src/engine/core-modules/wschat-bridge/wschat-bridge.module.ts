@@ -67,6 +67,8 @@ import { WschatBridgeWorkspaceCreationService } from 'src/engine/core-modules/ws
 import { WschatBridgeWorkspaceEnforcementService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-enforcement.service';
 import { WschatBridgeWorkspaceLookupService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-lookup.service';
 import { WschatBridgeWorkspaceSettingsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-settings.service';
+import { WschatBridgeWorkspaceSessionsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-sessions.service';
+import { WschatBridgeMemberListService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-member-list.service';
 import { WschatBridgeWorkspaceDeletionService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-deletion.service';
 import { WschatBridgeWorkspaceUsageService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-usage.service';
 import { WschatBridgeWorkspaceUpdateService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-update.service';
@@ -153,6 +155,8 @@ import { WorkspaceMigrationModule } from 'src/engine/workspace-manager/workspace
     WschatBridgeSampleRecordsService,
     WschatBridgeSampleWorkflowsService,
     WschatBridgeSampleActionWorkflowsService,
+    WschatBridgeWorkspaceSessionsService,
+    WschatBridgeMemberListService,
     { provide: APP_GUARD, useClass: WschatBridgeAuthorizeAppGuard },
     // Not exported by TwoFactorAuthenticationModule; both need only core repositories, so they are provided here
     TwoFactorAuthenticationBackupCodeService,

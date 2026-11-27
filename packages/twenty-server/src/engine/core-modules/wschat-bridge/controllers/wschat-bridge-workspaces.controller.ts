@@ -56,6 +56,14 @@ import {
   type WschatBridgeWorkspaceUsageDTO,
   WschatBridgeWorkspaceUsageService,
 } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-usage.service';
+import {
+  type WschatBridgeClosedSessionsDTO,
+  WschatBridgeWorkspaceSessionsService,
+} from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-sessions.service';
+import {
+  type WschatBridgeListedMemberDTO,
+  WschatBridgeMemberListService,
+} from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-member-list.service';
 import { WschatBridgeWorkspaceUpdateService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-update.service';
 import { NoPermissionGuard } from 'src/engine/guards/no-permission.guard';
 import { PublicEndpointGuard } from 'src/engine/guards/public-endpoint.guard';
@@ -85,6 +93,8 @@ export class WschatBridgeWorkspacesController {
     private readonly assistantsService: WschatBridgeAssistantsService,
     private readonly workspaceDeletionService: WschatBridgeWorkspaceDeletionService,
     private readonly workspaceUsageService: WschatBridgeWorkspaceUsageService,
+    private readonly workspaceSessionsService: WschatBridgeWorkspaceSessionsService,
+    private readonly memberListService: WschatBridgeMemberListService,
   ) {}
 
   @Post()
@@ -131,6 +141,22 @@ export class WschatBridgeWorkspacesController {
     @Param('workspaceId', new ParseUUIDPipe()) workspaceId: string,
   ): Promise<WschatBridgeWorkspaceUsageDTO> {
     return this.workspaceUsageService.measure(workspaceId);
+  }
+
+  // Every member's sessions and refresh tokens in this workspace, the service user's excepted
+  @Post(':workspaceId/close-sessions')
+  @HttpCode(200)
+  async closeSessions(
+    @Param('workspaceId', new ParseUUIDPipe()) workspaceId: string,
+  ): Promise<WschatBridgeClosedSessionsDTO> {
+    return this.workspaceSessionsService.closeAllSessions(workspaceId);
+  }
+
+  @Get(':workspaceId/members')
+  async listMembers(
+    @Param('workspaceId', new ParseUUIDPipe()) workspaceId: string,
+  ): Promise<{ members: WschatBridgeListedMemberDTO[] }> {
+    return this.memberListService.listAllMembers(workspaceId);
   }
 
   @Put(':workspaceId/members')

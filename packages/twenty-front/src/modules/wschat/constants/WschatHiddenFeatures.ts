@@ -5,7 +5,8 @@ type WschatHiddenFeature =
   | 'createWorkspace'
   | 'deleteAccount'
   | 'inviteUser'
-  | 'signInScreen';
+  | 'signInScreen'
+  | 'workspaceSwitcher';
 
 // The CRM is used only inside a WSChat frame, so these upstream features are hidden; see WSCHAT.md
 export const WSCHAT_HIDDEN_FEATURES: Record<WschatHiddenFeature, boolean> = {
@@ -24,4 +25,6 @@ export const WSCHAT_HIDDEN_FEATURES: Record<WschatHiddenFeature, boolean> = {
   inviteUser: true,
   // The workspace sign-in screen offers no way in (password and social sign-in are off): go through WSChat
   signInScreen: true,
+  // The company is picked in WSChat; switching inside its frame would show another company's CRM there
+  workspaceSwitcher: true,
 };

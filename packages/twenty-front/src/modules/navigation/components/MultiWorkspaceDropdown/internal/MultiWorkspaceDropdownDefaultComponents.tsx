@@ -35,7 +35,7 @@ import { Avatar } from 'twenty-ui/primitives/data-display';
 import { useIsMobile } from 'twenty-ui/utilities';
 import { useNavigateSettings } from '~/hooks/useNavigateSettings';
 import { getAbsoluteImageUrl } from '~/utils/image/getAbsoluteImageUrl';
-// WSChat fork: no Log out, Create Workspace or Invite user, see WSCHAT.md
+// WSChat fork: no Log out, Create Workspace, Invite user or workspace switcher, see WSCHAT.md
 import { WSCHAT_HIDDEN_FEATURES } from '@/wschat/constants/WschatHiddenFeatures';
 
 export const MultiWorkspaceDropdownDefaultComponents = () => {
@@ -50,6 +50,9 @@ export const MultiWorkspaceDropdownDefaultComponents = () => {
   const availableWorkspaces = useAtomStateValue(availableWorkspacesState);
   const availableWorkspacesCount =
     countAvailableWorkspaces(availableWorkspaces);
+  // WSChat fork: the company is picked in WSChat, so no switching here
+  const isWorkspaceSwitcherShown =
+    !WSCHAT_HIDDEN_FEATURES.workspaceSwitcher && availableWorkspacesCount > 1;
   const { redirectToDefaultDomain } = useRedirectToDefaultDomain();
   const { signOut } = useAuth();
   const { colorScheme, colorSchemeList } = useColorScheme();
@@ -130,7 +133,7 @@ export const MultiWorkspaceDropdownDefaultComponents = () => {
           </DropdownRoot>
         )}
       </Dropdown.Header>
-      {availableWorkspacesCount > 1 && (
+      {isWorkspaceSwitcherShown && (
         <>
           <Dropdown.Section>
             {[

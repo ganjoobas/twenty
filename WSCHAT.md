@@ -68,6 +68,9 @@ This repository is upstream [Twenty](https://github.com/twentyhq/twenty) at tag
     person from every company's CRM and the next sync would recreate them.
   - Invite user in the workspace menu (`MultiWorkspaceDropdownDefaultComponents.tsx`):
     people are invited only by WSChat; the item only led back to the profile.
+  - the workspace switcher in the workspace menu (`MultiWorkspaceDropdownDefaultComponents.tsx`,
+    flag `workspaceSwitcher`): the company is picked in WSChat, and switching
+    inside its frame would show another company's CRM there;
   - the workspace sign-in screen (`SignInUp.tsx`, flag `signInScreen`): it
     offers no way in here, so a signed-out visitor goes to WSChat instead
     (`modules/wschat/hooks/useWschatEnterThroughHost.ts`). In the WSChat frame

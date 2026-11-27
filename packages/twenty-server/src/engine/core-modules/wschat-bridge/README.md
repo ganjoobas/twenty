@@ -293,6 +293,42 @@ Read-only.
   lower bound). A missing folder is `0`.
 - `404 WORKSPACE_NOT_FOUND` for an unknown or deleted workspace.
 
+### `GET /wschat-bridge/workspaces/:workspaceId/members` → `200`
+
+```json
+{ "members": [{ "email": "boss@acme.kg", "role": "admin", "service": false, "serverAdmin": false }] }
+```
+
+Every current member (soft-deleted users left out), the service user included
+and flagged `service`; `role` is `admin` (company admin or standard Admin),
+`member` or `other`; `serverAdmin` is `canAccessFullAdminPanel`. Read-only.
+Together with `DELETE …/members` this lets WSChat remove members it no longer
+has (an old e-mail after a change): `PUT …/members` adds or updates one member
+and never removes anyone.
+
+### `POST /wschat-bridge/workspaces/:workspaceId/close-sessions` → `200`
+
+```json
+{ "closedMembers": 2, "closedSessions": 3 }
+```
+
+Closes every way back in of every member of this workspace except the service
+user, including members WSChat does not know: their browser sessions in this
+workspace through `UserSessionService.revokeAllSessionsForUser({ workspaceId })`
+(the same call as member removal), and their refresh tokens of this workspace
+(`core.appToken`, revoked with a reason, so no renewal grace applies).
+Sessions and tokens of the same people in other workspaces are not touched.
+Idempotent (a second call closes `0`). `404 WORKSPACE_NOT_FOUND` for an
+unknown workspace.
+
+- Effect is immediate: a session is resolved on every request and its cache
+  entry is deleted by the revocation, so the next request of an open tab is
+  refused. An access JWT the browser may hold from a token exchange cannot be
+  revoked and lasts at most `ACCESS_TOKEN_EXPIRES_IN` (30 minutes by default).
+- Not touched: API keys (WSChat's own and the company's), workflows (they run
+  as their application, not as a member session), and assistants' OAuth
+  grants (closed by `assistantsEnabled`).
+
 ### `PUT /wschat-bridge/workspaces/:workspaceId/members` → `200`
 
 Body: `{ email, firstName, lastName, role: "admin" | "member", locale?, colorScheme? }`.
