@@ -1,12 +1,16 @@
-import {
-  FieldMetadataType,
-  RelationType,
-  type StepFilter,
-  ViewFilterOperand,
-} from 'twenty-shared/types';
-import { isDefined, isNonEmptyArray } from 'twenty-shared/utils';
-import { TRIGGER_STEP_ID } from 'twenty-shared/workflow';
+import { FieldMetadataType, RelationType } from 'twenty-shared/types';
+import { isDefined } from 'twenty-shared/utils';
+import { WorkflowActionType } from 'twenty-shared/workflow';
 
+import {
+  findWschatTriggerProblem,
+  type WschatStepAction,
+  type WschatStepTriggerSettings,
+} from 'src/engine/core-modules/wschat-bridge/utils/find-wschat-trigger-problem.util';
+import {
+  planWschatStepPlacement,
+  type WschatStepPlacement,
+} from 'src/engine/core-modules/wschat-bridge/utils/plan-wschat-step-placement.util';
 import { computeMorphOrRelationFieldJoinColumnName } from 'src/engine/metadata-modules/field-metadata/utils/compute-morph-or-relation-field-join-column-name.util';
 import { type FlatEntityMaps } from 'src/engine/metadata-modules/flat-entity/types/flat-entity-maps.type';
 import { type FlatFieldMetadata } from 'src/engine/metadata-modules/flat-field-metadata/types/flat-field-metadata.type';
@@ -14,46 +18,50 @@ import { isFlatFieldMetadataOfType } from 'src/engine/metadata-modules/flat-fiel
 import { type FlatObjectMetadata } from 'src/engine/metadata-modules/flat-object-metadata/types/flat-object-metadata.type';
 import { type WorkflowAction } from 'src/modules/workflow/workflow-executor/workflow-actions/types/workflow-action.type';
 import {
-  type BaseDatabaseEventTriggerSettings,
-  type UpdateEventTriggerSettings,
-} from 'src/modules/workflow/workflow-trigger/automated-trigger/constants/automated-trigger-settings';
-import {
   type WorkflowTrigger,
   WorkflowTriggerType,
 } from 'src/modules/workflow/workflow-trigger/types/workflow-trigger.type';
 
-export type WschatStepAction = 'message' | 'task';
+// A record variable prefix ("trigger.payload"), or the items of a FIND_RECORDS step the tool loops over
+export type WschatStepRecordSource =
+  | { kind: 'record'; variable: string }
+  | { kind: 'loop'; items: string };
 
-// personIdVariable: the trigger record's link to its person; absent when the record is the person
+// personJoinColumn: the record's link to its person; absent when the record is the person
 export type WschatStepPlan =
   | { problem: string }
-  | { parentStepId: string; personIdVariable?: string };
+  | {
+      source: WschatStepRecordSource;
+      personJoinColumn?: string;
+      placement: WschatStepPlacement;
+    };
 
-const CONVERSATION = 'wschatConversation';
-const LAST_MESSAGE_FIELDS = ['lastMessageAt', 'lastMessageFrom'];
+type FlatMaps = {
+  flatObjectMetadataMaps: FlatEntityMaps<FlatObjectMetadata>;
+  flatFieldMetadataMaps: FlatEntityMaps<FlatFieldMetadata>;
+};
 
-const hasFilter = (
-  stepFilters: StepFilter[],
-  fieldName: string,
-  acceptsValue: (value: string) => boolean,
-): boolean =>
-  stepFilters.some(
-    ({ stepOutputKey, operand, value }) =>
-      stepOutputKey === `{{trigger.properties.after.${fieldName}}}` &&
-      operand === ViewFilterOperand.IS &&
-      acceptsValue(value),
+const findObject = (
+  flatObjectMetadataMaps: FlatEntityMaps<FlatObjectMetadata>,
+  nameSingular: string,
+): FlatObjectMetadata | undefined =>
+  Object.values(flatObjectMetadataMaps.byUniversalIdentifier).find(
+    (candidate) => candidate?.nameSingular === nameSingular,
   );
 
-const findPersonJoinColumn = ({
-  objectFields,
-  flatObjectMetadataMaps,
-}: {
-  objectFields: FlatFieldMetadata[];
-  flatObjectMetadataMaps: FlatEntityMaps<FlatObjectMetadata>;
-}): string | undefined => {
-  const person = Object.values(
-    flatObjectMetadataMaps.byUniversalIdentifier,
-  ).find((candidate) => candidate?.nameSingular === 'person');
+const findObjectFields = (
+  flatFieldMetadataMaps: FlatEntityMaps<FlatFieldMetadata>,
+  object: FlatObjectMetadata,
+): FlatFieldMetadata[] =>
+  Object.values(flatFieldMetadataMaps.byUniversalIdentifier).filter(
+    (field): field is FlatFieldMetadata =>
+      field?.objectMetadataId === object.id,
+  );
+
+const findPersonJoinColumn = (
+  objectFields: FlatFieldMetadata[],
+  person: FlatObjectMetadata | undefined,
+): string | undefined => {
   const relations = objectFields.filter(
     (field) =>
       isFlatFieldMetadataOfType(field, FieldMetadataType.RELATION) &&
@@ -70,26 +78,14 @@ const findPersonJoinColumn = ({
     : undefined;
 };
 
-const findDefaultParentStepId = (
-  steps: WorkflowAction[],
-): string | undefined => {
-  if (steps.length === 0) {
-    return TRIGGER_STEP_ID;
-  }
-
-  const leafSteps = steps.filter(
-    ({ nextStepIds }) => !isNonEmptyArray(nextStepIds),
-  );
-
-  return leafSteps.length === 1 ? leafSteps[0].id : undefined;
-};
-
-// Refuses triggers that would fire on history or on the step's own result (README, "AI chat: WSChat steps")
+// Refuses what would fire on history or on the step's own result (README, "AI chat: WSChat steps")
 export const planWschatStep = ({
   action,
   trigger,
   steps,
   parentStepId,
+  branchId,
+  forEachRecordOf,
   flatObjectMetadataMaps,
   flatFieldMetadataMaps,
 }: {
@@ -97,114 +93,94 @@ export const planWschatStep = ({
   trigger: WorkflowTrigger | null;
   steps: WorkflowAction[];
   parentStepId?: string;
-  flatObjectMetadataMaps: FlatEntityMaps<FlatObjectMetadata>;
-  flatFieldMetadataMaps: FlatEntityMaps<FlatFieldMetadata>;
-}): WschatStepPlan => {
-  if (trigger?.type !== WorkflowTriggerType.DATABASE_EVENT) {
+  branchId?: string;
+  forEachRecordOf?: string;
+} & FlatMaps): WschatStepPlan => {
+  if (!isDefined(trigger)) {
+    return { problem: 'Set the trigger first.' };
+  }
+
+  let source: WschatStepRecordSource | undefined;
+  let objectName: string | undefined;
+
+  if (trigger.type === WorkflowTriggerType.DATABASE_EVENT) {
+    const settings = trigger.settings as WschatStepTriggerSettings;
+    const [triggerObjectName] = settings.eventName.split('.');
+    const triggerObject = findObject(flatObjectMetadataMaps, triggerObjectName);
+    const problem = findWschatTriggerProblem({
+      action,
+      settings,
+      hasImportedFlag:
+        isDefined(triggerObject) &&
+        findObjectFields(flatFieldMetadataMaps, triggerObject).some(
+          ({ name }) => name === 'wschatImported',
+        ),
+    });
+
+    if (isDefined(problem)) {
+      return { problem };
+    }
+
+    source = { kind: 'record', variable: 'trigger.properties.after' };
+    objectName = triggerObjectName;
+  } else if (
+    trigger.type === WorkflowTriggerType.MANUAL &&
+    trigger.settings.availability?.type === 'SINGLE_RECORD'
+  ) {
+    source = { kind: 'record', variable: 'trigger.payload' };
+    objectName = trigger.settings.availability.objectNameSingular;
+  }
+
+  if (isDefined(forEachRecordOf)) {
+    const recordsStep = steps.find(({ id }) => id === forEachRecordOf);
+
+    if (recordsStep?.type !== WorkflowActionType.FIND_RECORDS) {
+      return {
+        problem: `forEachRecordOf must be the id of a FIND_RECORDS step of this version, not "${forEachRecordOf}".`,
+      };
+    }
+
+    source = { kind: 'loop', items: `{{${recordsStep.id}.all}}` };
+    objectName = recordsStep.settings.input.objectName;
+  }
+
+  if (!isDefined(source) || !isDefined(objectName)) {
     return {
       problem:
-        'Set the trigger first: the WSChat step needs a record event (DATABASE_EVENT "created" or "updated") whose record leads to the client.',
+        'This trigger brings no record: add a FIND_RECORDS step listing the clients and pass its id as forEachRecordOf, or use a record trigger or a manual trigger on one record.',
     };
   }
 
-  const settings = trigger.settings as BaseDatabaseEventTriggerSettings &
-    Partial<UpdateEventTriggerSettings>;
-  const [objectName, eventAction] = settings.eventName.split('.');
-  const stepFilters = settings.filter?.stepFilters ?? [];
-
-  if (eventAction !== 'created' && eventAction !== 'updated') {
-    return {
-      problem: `"${settings.eventName}" cannot start a WSChat step: use "created" or "updated" ("upserted" fires on every repeated sync, a deleted record is gone).`,
-    };
-  }
-
-  const object = Object.values(
-    flatObjectMetadataMaps.byUniversalIdentifier,
-  ).find((candidate) => candidate?.nameSingular === objectName);
+  const object = findObject(flatObjectMetadataMaps, objectName);
 
   if (!isDefined(object)) {
-    return { problem: `The trigger's object "${objectName}" does not exist.` };
-  }
-
-  const objectFields = Object.values(
-    flatFieldMetadataMaps.byUniversalIdentifier,
-  ).filter(
-    (field): field is FlatFieldMetadata =>
-      field?.objectMetadataId === object.id,
-  );
-  const watchedFields = settings.fields ?? [];
-
-  if (eventAction === 'updated' && watchedFields.length === 0) {
-    return {
-      problem:
-        'An "updated" trigger must list the fields it watches in settings.fields (e.g. ["lastMessageAt"] or ["state", "outcomeTone"]): WSChat updates its records after every message, so an unrestricted trigger would start this workflow again on its own result.',
-    };
-  }
-
-  if (
-    objectFields.some(({ name }) => name === 'wschatImported') &&
-    !hasFilter(stepFilters, 'wschatImported', (value) => value === 'false')
-  ) {
-    return {
-      problem:
-        'Add the trigger filter wschatImported IS "false" (type BOOLEAN, stepOutputKey "{{trigger.properties.after.wschatImported}}", value "false"): records WSChat loads from history must not act on clients.',
-    };
-  }
-
-  if (
-    action === 'message' &&
-    objectName === CONVERSATION &&
-    watchedFields.some((field) => LAST_MESSAGE_FIELDS.includes(field)) &&
-    !hasFilter(stepFilters, 'lastMessageFrom', (value) =>
-      value.includes('CLIENT'),
-    )
-  ) {
-    return {
-      problem:
-        'Add the trigger filter lastMessageFrom IS CLIENT (type SELECT, stepOutputKey "{{trigger.properties.after.lastMessageFrom}}", value "[\\"CLIENT\\"]"): without it the reply this step sends starts the workflow again.',
-    };
-  }
-
-  if (action === 'task' && objectName === 'task') {
-    return {
-      problem:
-        'A WSChat task cannot follow a task trigger: the task WSChat creates comes back as a CRM task and would start this workflow again. A CRM task already reaches WSChat when it is linked to a client or "Show in WSChat" is ticked.',
-    };
+    return { problem: `Object "${objectName}" does not exist.` };
   }
 
   const personJoinColumn =
     objectName === 'person'
       ? undefined
-      : findPersonJoinColumn({ objectFields, flatObjectMetadataMaps });
+      : findPersonJoinColumn(
+          findObjectFields(flatFieldMetadataMaps, object),
+          findObject(flatObjectMetadataMaps, 'person'),
+        );
 
   if (objectName !== 'person' && !isDefined(personJoinColumn)) {
     return {
-      problem: `"${objectName}" records have no single link to a person, so there is no client to reach. Trigger on person, wschatConversation, wschatCall, or another object with one relation to a person.`,
+      problem: `"${objectName}" records have no single link to a person, so there is no client to reach.`,
     };
   }
 
-  const resolvedParentStepId = parentStepId ?? findDefaultParentStepId(steps);
+  const placement = planWschatStepPlacement({
+    trigger,
+    steps,
+    parentStepId: parentStepId ?? forEachRecordOf,
+    branchId,
+  });
 
-  if (!isDefined(resolvedParentStepId)) {
-    return {
-      problem:
-        'The workflow has several last steps: pass parentStepId (a step id, or "trigger") to say where the WSChat step goes.',
-    };
+  if ('problem' in placement) {
+    return placement;
   }
 
-  if (
-    resolvedParentStepId !== TRIGGER_STEP_ID &&
-    !steps.some(({ id }) => id === resolvedParentStepId)
-  ) {
-    return {
-      problem: `Step "${resolvedParentStepId}" is not in this workflow version.`,
-    };
-  }
-
-  return {
-    parentStepId: resolvedParentStepId,
-    ...(isDefined(personJoinColumn) && {
-      personIdVariable: `{{trigger.properties.after.${personJoinColumn}}}`,
-    }),
-  };
+  return { source, personJoinColumn, placement };
 };

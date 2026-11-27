@@ -1,11 +1,13 @@
 import { Injectable } from '@nestjs/common';
 
+import { isDefined } from 'twenty-shared/utils';
 import { type WorkflowRunStepLog } from 'twenty-shared/workflow';
 
 import { HttpTool } from 'src/engine/core-modules/tool/tools/http-tool/http-tool';
 import { type ToolExecutionContext } from 'src/engine/core-modules/tool/types/tool-execution-context.type';
 import { type ToolOutput } from 'src/engine/core-modules/tool/types/tool-output.type';
 import { type Tool } from 'src/engine/core-modules/tool/types/tool.type';
+import { WschatBridgeActionsTargetService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-actions-target.service';
 import {
   WorkflowStepExecutorException,
   WorkflowStepExecutorExceptionCode,
@@ -18,11 +20,15 @@ import { ToolBackedWorkflowAction } from 'src/modules/workflow/workflow-executor
 import { type WorkflowAction } from 'src/modules/workflow/workflow-executor/workflow-actions/types/workflow-action.type';
 import { WorkflowRunStepLogWorkspaceService } from 'src/modules/workflow/workflow-runner/workflow-run/workflow-run-step-log.workspace-service';
 
+// Inputs that got WSChat's token, so their request follows no redirect; weak, so nothing outlives the run
+const WSCHAT_AUTHORIZED_INPUTS = new WeakSet<WorkflowHttpRequestActionInput>();
+
 @Injectable()
 export class HttpRequestWorkflowAction extends ToolBackedWorkflowAction<WorkflowHttpRequestActionInput> {
   constructor(
     private readonly httpTool: HttpTool,
     workflowRunStepLogService: WorkflowRunStepLogWorkspaceService,
+    private readonly wschatActionsTargetService: WschatBridgeActionsTargetService,
   ) {
     super(HttpRequestWorkflowAction.name, workflowRunStepLogService);
   }
@@ -40,15 +46,36 @@ export class HttpRequestWorkflowAction extends ToolBackedWorkflowAction<Workflow
     }
   }
 
+  // WSChat fork: steps calling the workspace's WSChat endpoint carry no token, it is added here (wschat-bridge README, "WSChat token")
+  protected override async postprocessInput(
+    input: WorkflowHttpRequestActionInput,
+    workspaceId: string,
+  ): Promise<WorkflowHttpRequestActionInput> {
+    const authorized = await this.wschatActionsTargetService.authorizeRequest({
+      workspaceId,
+      input,
+    });
+
+    if (!isDefined(authorized)) {
+      return input;
+    }
+
+    WSCHAT_AUTHORIZED_INPUTS.add(authorized);
+
+    return authorized;
+  }
+
   protected override async buildToolExecutionContext(
     runInfo: WorkflowRunInfo,
     stepId: string,
+    input: WorkflowHttpRequestActionInput,
   ): Promise<ToolExecutionContext> {
     return {
       workspaceId: runInfo.workspaceId,
       workflowRunId: runInfo.workflowRunId,
       workflowStepId: stepId,
       outboundRequestSource: 'workflow-http',
+      ...(WSCHAT_AUTHORIZED_INPUTS.has(input) && { maxRedirects: 0 }),
     };
   }
 

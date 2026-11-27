@@ -2,6 +2,7 @@ import { Test, type TestingModule } from '@nestjs/testing';
 
 import { WorkflowActionType } from 'twenty-shared/workflow';
 import { HttpTool } from 'src/engine/core-modules/tool/tools/http-tool/http-tool';
+import { WschatBridgeActionsTargetService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-actions-target.service';
 import { HttpRequestWorkflowAction } from 'src/modules/workflow/workflow-executor/workflow-actions/http-request/http-request.workflow-action';
 import { type WorkflowActionSettings } from 'src/modules/workflow/workflow-executor/workflow-actions/types/workflow-action-settings.type';
 import { type WorkflowAction } from 'src/modules/workflow/workflow-executor/workflow-actions/types/workflow-action.type';
@@ -29,6 +30,7 @@ describe('HttpRequestWorkflowAction', () => {
   let action: HttpRequestWorkflowAction;
   let mockHttpTool: jest.Mocked<Pick<HttpTool, 'execute'>>;
   let mockSetStepLog: jest.Mock;
+  let wschatTargets: Record<string, { url: string; token: string }>;
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -41,6 +43,7 @@ describe('HttpRequestWorkflowAction', () => {
       }),
     };
     mockSetStepLog = jest.fn();
+    wschatTargets = {};
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -49,6 +52,15 @@ describe('HttpRequestWorkflowAction', () => {
         {
           provide: WorkflowRunStepLogWorkspaceService,
           useValue: { setStepLog: mockSetStepLog },
+        },
+        {
+          provide: WschatBridgeActionsTargetService,
+          useValue: new WschatBridgeActionsTargetService({
+            get: async ({ workspaceId }: { workspaceId: string }) =>
+              workspaceId in wschatTargets
+                ? [{ value: wschatTargets[workspaceId] }]
+                : [],
+          } as never),
         },
       ],
     }).compile();
@@ -128,5 +140,68 @@ describe('HttpRequestWorkflowAction', () => {
     ).rejects.toThrow('Step is not an HTTP request action');
 
     expect(mockHttpTool.execute).not.toHaveBeenCalled();
+  });
+
+  describe('WSChat token', () => {
+    const runWschatStep = (url: string, workspaceId = 'workspace-1') =>
+      action.execute({
+        currentStepId: 'step-1',
+        steps: [
+          buildHttpRequestStep({
+            url,
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: { text: 'Hi' },
+          }),
+        ],
+        context: {},
+        runInfo: { workspaceId, workflowRunId: 'run-1' },
+      });
+
+    beforeEach(() => {
+      wschatTargets = {
+        'workspace-1': {
+          url: 'https://wschat.org/crm-actions/v1',
+          token: 'tok_own',
+        },
+        'workspace-2': {
+          url: 'https://evil.example.com/crm-actions/v1',
+          token: 'tok_other',
+        },
+      };
+    });
+
+    it("adds the workspace's stored token to calls of its WSChat endpoint, follows no redirect and keeps it out of the log", async () => {
+      await runWschatStep('https://wschat.org/crm-actions/v1/messages');
+
+      expect(mockHttpTool.execute).toHaveBeenCalledWith(
+        expect.objectContaining({
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer tok_own',
+          },
+        }),
+        expect.objectContaining({ maxRedirects: 0 }),
+      );
+      expect(JSON.stringify(mockSetStepLog.mock.calls)).not.toContain(
+        'tok_own',
+      );
+    });
+
+    it('adds nothing for a look-alike host, another workspace or no stored target', async () => {
+      await runWschatStep(
+        'https://wschat.org.evil.com/crm-actions/v1/messages',
+      );
+      await runWschatStep('https://evil.example.com/crm-actions/v1/messages');
+      await runWschatStep(
+        'https://wschat.org/crm-actions/v1/messages',
+        'workspace-3',
+      );
+
+      for (const [input, context] of mockHttpTool.execute.mock.calls) {
+        expect(input.headers).toEqual({ 'Content-Type': 'application/json' });
+        expect(context).not.toHaveProperty('maxRedirects');
+      }
+    });
   });
 });

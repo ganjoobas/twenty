@@ -55,7 +55,7 @@ export class WschatBridgeCreateWorkspaceInput {
   @IsString({ each: true })
   allowedEmbeddingOrigins?: string[];
 
-  // WSChat's actions endpoint for the sample workflows (README, "Sample action workflows"); never stored or logged
+  // WSChat's actions endpoint (README, "Sample action workflows", "WSChat token"); never logged or reported
   @IsOptional()
   @ValidateNested()
   @Type(() => WschatBridgeActionsInput)

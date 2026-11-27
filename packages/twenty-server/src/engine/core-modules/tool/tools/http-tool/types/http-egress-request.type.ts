@@ -8,6 +8,7 @@ export type HttpEgressRequest = {
   limits: {
     timeoutMs: number;
     maxPayloadSizeBytes: number;
+    maxRedirects?: number;
   };
   context: OutboundRequestContext;
 };

@@ -9,8 +9,6 @@ import {
   type WschatBridgeLocale,
 } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-data-model.constant';
 
-export type WschatBridgeActionsTarget = { url: string; token: string };
-
 export type WschatBridgeSampleActionWorkflow = {
   reportName: string;
   name: string;
@@ -46,6 +44,7 @@ export const WSCHAT_STEP_NAMES = {
     ru: 'Отправить сообщение из WSChat',
   },
   createTask: { en: 'Create a task in WSChat', ru: 'Создать задачу в WSChat' },
+  forEachClient: { en: 'For each client', ru: 'Для каждого клиента' },
 } as const;
 
 const TEXTS = {
@@ -91,7 +90,7 @@ const TEXTS = {
       en: 'SET UP: which clients to remind (matches nobody yet). Sending is limited per day by the channel',
       ru: 'НАСТРОЙТЕ: кому напомнить (сейчас не выбирает никого). Отправка идёт с дневными пределами канала',
     },
-    loop: { en: 'For each client', ru: 'Для каждого клиента' },
+    loop: WSCHAT_STEP_NAMES.forEachClient,
     action: WSCHAT_STEP_NAMES.sendMessage,
     text: {
       en: 'Hello! A reminder from us: …',
@@ -132,18 +131,24 @@ const FILTER_IDS = [
   '9c8b7a6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d',
 ] as const;
 
+export const buildWschatActionUrl = (
+  actionsUrl: string,
+  path: '/messages' | '/tasks',
+): string => `${actionsUrl.replace(/\/+$/, '')}${path}`;
+
+// No Authorization: the HTTP step adds the stored token when it calls this endpoint (README, "WSChat token")
 export const httpStep = ({
   universalIdentifier,
   name,
   nextStepIds,
-  target,
+  actionsUrl,
   path,
   body,
 }: {
   universalIdentifier: string;
   name: string;
   nextStepIds: string[];
-  target: WschatBridgeActionsTarget;
+  actionsUrl: string;
   path: '/messages' | '/tasks';
   body: Record<string, string>;
 }): WorkflowManifest['version']['steps'][number] => ({
@@ -152,12 +157,9 @@ export const httpStep = ({
   type: 'HTTP_REQUEST',
   nextStepIds,
   input: {
-    url: `${target.url.replace(/\/+$/, '')}${path}`,
+    url: buildWschatActionUrl(actionsUrl, path),
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${target.token}`,
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body,
   },
 });
@@ -229,15 +231,15 @@ const liveRecordWithPersonFilters = ({
 ];
 
 // Same record and same change: same key, so a retried step does nothing twice; a new change gets a new key
-export const TRIGGER_RECORD_KEY =
+const TRIGGER_RECORD_KEY =
   '{{trigger.properties.after.id}}:{{trigger.properties.after.updatedAt}}';
 
 // Three switched-off samples acting in WSChat through its actions endpoint (README, "Sample action workflows")
 export const buildSampleActionWorkflows = ({
-  target,
+  actionsUrl,
   locale,
 }: {
-  target: WschatBridgeActionsTarget;
+  actionsUrl: string;
   locale: WschatBridgeLocale;
 }): WschatBridgeSampleActionWorkflow[] => {
   const missed = IDS.missedCall;
@@ -301,7 +303,7 @@ export const buildSampleActionWorkflows = ({
               universalIdentifier: missed.action,
               name: TEXTS.missedCall.action[locale],
               nextStepIds: [],
-              target,
+              actionsUrl,
               path: '/tasks',
               body: {
                 contact: `{{${missed.findPerson}.first.wschatContactId}}`,
@@ -386,7 +388,7 @@ export const buildSampleActionWorkflows = ({
               universalIdentifier: closed.action,
               name: TEXTS.closedConversation.action[locale],
               nextStepIds: [],
-              target,
+              actionsUrl,
               path: '/messages',
               body: {
                 contact: `{{${closed.findPerson}.first.wschatContactId}}`,
@@ -454,7 +456,7 @@ export const buildSampleActionWorkflows = ({
               universalIdentifier: reminder.action,
               name: TEXTS.reminder.action[locale],
               nextStepIds: [reminder.loop],
-              target,
+              actionsUrl,
               path: '/messages',
               body: {
                 contact: `{{${reminder.loop}.currentItem.wschatContactId}}`,

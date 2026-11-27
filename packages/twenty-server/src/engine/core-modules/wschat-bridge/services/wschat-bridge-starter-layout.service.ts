@@ -20,7 +20,7 @@ import {
 import { WschatBridgeFieldIconsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-field-icons.service';
 import { WschatBridgeIndexViewRevertService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-index-view-revert.service';
 import { WschatBridgeSampleActionWorkflowsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-sample-action-workflows.service';
-import { type WschatBridgeActionsTarget } from 'src/engine/core-modules/wschat-bridge/utils/build-sample-action-workflows.util';
+import { type WschatBridgeActionsTarget } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-actions-target.constant';
 import { WschatBridgeSampleWorkflowsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-sample-workflows.service';
 import { WschatBridgeStarterIndexViewsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-starter-index-views.service';
 import { WschatBridgeStarterViewsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-starter-views.service';

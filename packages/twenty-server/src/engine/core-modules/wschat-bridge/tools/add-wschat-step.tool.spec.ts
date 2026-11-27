@@ -8,6 +8,7 @@ import {
 
 import { ApplicationRegistrationSourceType } from 'src/engine/core-modules/application/application-registration/enums/application-registration-source-type.enum';
 import { DefinedToolRegistryService } from 'src/engine/core-modules/tool-provider/services/defined-tool-registry.service';
+import { CoreWorkflowVersionPostCommitError } from 'src/engine/core-modules/workflow/services/core-workflow-version-write.service';
 import { AddWschatStepTool } from 'src/engine/core-modules/wschat-bridge/tools/add-wschat-step.tool';
 import { AccessPolicyService } from 'src/engine/guards/access-policy/access-policy.service';
 import { WorkflowTriggerType } from 'src/modules/workflow/workflow-trigger/types/workflow-trigger.type';
@@ -82,13 +83,14 @@ const FLAT_MAPS = {
 describe('AddWschatStepTool', () => {
   let target: typeof TARGET | undefined;
   let trigger: ReturnType<typeof clientWroteTrigger>;
+  let draftSteps: unknown[];
 
   const actionsTargetService = { find: jest.fn(async () => target) };
   const coreWorkflowVersionWriteService = {
     getValidatedDraftCoreWorkflowVersion: jest.fn(async () => ({
       coreWorkflowVersion: { id: VERSION_ID },
       trigger,
-      steps: [],
+      steps: draftSteps,
     })),
     writeContent: jest.fn(async () => ({})),
   };
@@ -111,35 +113,40 @@ describe('AddWschatStepTool', () => {
       context: { workspaceId: WORKSPACE_ID, userWorkspaceId: 'member' },
     });
 
+  const writtenSteps = () =>
+    (
+      coreWorkflowVersionWriteService.writeContent.mock.calls[0] as unknown as [
+        {
+          trigger: { nextStepIds: string[] };
+          steps: {
+            id: string;
+            name: string;
+            type: string;
+            nextStepIds?: string[];
+            settings: {
+              input: { url?: string; headers?: Record<string, string> };
+            };
+          }[];
+        },
+      ]
+    )[0];
+
   beforeEach(() => {
     target = TARGET;
-    trigger = clientWroteTrigger([
-      stepFilter('lastMessageFrom', '["CLIENT"]'),
-      stepFilter('wschatImported', 'false'),
-    ]);
+    trigger = clientWroteTrigger([stepFilter('lastMessageFrom', '["CLIENT"]')]);
+    draftSteps = [];
     jest.clearAllMocks();
   });
 
-  it('should add "find the client" and the message after the trigger, and answer without the token', async () => {
+  it('should add "find the client" and the message after the trigger, with the token nowhere in them', async () => {
     const output = await addReply();
 
     expect(output.success).toBe(true);
-    expect(JSON.stringify(output)).not.toContain(TOKEN);
 
-    const [{ trigger: writtenTrigger, steps }] = coreWorkflowVersionWriteService
-      .writeContent.mock.calls[0] as unknown as [
-      {
-        trigger: { nextStepIds: string[] };
-        steps: {
-          id: string;
-          type: string;
-          nextStepIds?: string[];
-          settings: { input: { headers?: Record<string, string> } };
-        }[];
-      },
-    ];
+    const { trigger: writtenTrigger, steps } = writtenSteps();
     const [findClient, message] = steps;
 
+    expect(JSON.stringify([output, steps])).not.toContain(TOKEN);
     expect(output.result).toEqual({
       coreWorkflowVersionId: VERSION_ID,
       stepIds: [findClient.id, message.id],
@@ -152,9 +159,29 @@ describe('AddWschatStepTool', () => {
       }),
     );
     expect(message.type).toBe('HTTP_REQUEST');
-    expect(message.settings.input.headers?.Authorization).toBe(
-      `Bearer ${TOKEN}`,
+    expect(message.settings.input.headers).toEqual({
+      'Content-Type': 'application/json',
+    });
+  });
+
+  it('should refuse a second identical WSChat step', async () => {
+    await addReply();
+    draftSteps = writtenSteps().steps;
+    jest.clearAllMocks();
+
+    const output = await addReply();
+
+    expect(output.success).toBe(false);
+    expect(output.message).toContain('already has this WSChat step');
+    expect(coreWorkflowVersionWriteService.writeContent).not.toHaveBeenCalled();
+  });
+
+  it('should count a save whose cache refresh failed afterwards as done', async () => {
+    coreWorkflowVersionWriteService.writeContent.mockRejectedValueOnce(
+      new CoreWorkflowVersionPostCommitError(new Error('redis down')),
     );
+
+    expect((await addReply()).success).toBe(true);
   });
 
   it('should refuse before reading the workflow while WSChat has not passed its address', async () => {
@@ -176,25 +203,15 @@ describe('AddWschatStepTool', () => {
   });
 
   it('should write nothing for a trigger that its own reply would start again', async () => {
-    trigger = clientWroteTrigger([stepFilter('wschatImported', 'false')]);
+    trigger = clientWroteTrigger([
+      stepFilter('lastMessageFrom', '["CLIENT","EMPLOYEE"]'),
+    ]);
 
     const output = await addReply();
 
     expect(output.success).toBe(false);
-    expect(output.message).toContain('lastMessageFrom IS CLIENT');
+    expect(output.message).toContain('lastMessageFrom IS ["CLIENT"]');
     expect(coreWorkflowVersionWriteService.writeContent).not.toHaveBeenCalled();
-  });
-
-  it('should never echo the token in an error', async () => {
-    coreWorkflowVersionWriteService.writeContent.mockRejectedValueOnce(
-      new Error(`Invalid header "Bearer ${TOKEN}"`),
-    );
-
-    const output = await addReply();
-
-    expect(output.success).toBe(false);
-    expect(JSON.stringify(output)).not.toContain(TOKEN);
-    expect(output.error).toBe('Invalid header "Bearer ***"');
   });
 
   it('should register at boot and be offered only with the workflows permission, never to application tokens', async () => {

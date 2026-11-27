@@ -24,7 +24,7 @@ import {
   type WschatBridgeDataModelResult,
   WschatBridgeDataModelService,
 } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-data-model.service';
-import { type WschatBridgeActionsTarget } from 'src/engine/core-modules/wschat-bridge/utils/build-sample-action-workflows.util';
+import { type WschatBridgeActionsTarget } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-actions-target.constant';
 import { WschatBridgeStarterLayoutService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-starter-layout.service';
 import { WschatBridgeServiceUserService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-service-user.service';
 import { WschatBridgeWorkspaceLookupService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-lookup.service';
@@ -88,10 +88,6 @@ export class WschatBridgeWorkspaceEnforcementService {
       assistantsEnabled,
     );
 
-    if (isDefined(actions)) {
-      await this.actionsTargetService.store(workspace.id, actions);
-    }
-
     const serviceUserAdded = await this.ensureServiceUserIsAdmin(workspace);
 
     const companyAdminRole = await this.managedRoleService.ensure({
@@ -114,6 +110,12 @@ export class WschatBridgeWorkspaceEnforcementService {
     const invitationsDeleted = await this.deleteInvitations(workspace);
     const approvedDomainsDeleted = await this.deleteApprovedDomains(workspace);
     const webhooks = (await this.webhookService.findAll(workspace.id)).length;
+
+    // After the lockdown, before the data model whose failure would keep it out; never fails the call
+    const actionsTargetStored = await this.actionsTargetService.store(
+      workspace.id,
+      actions,
+    );
 
     // Last on purpose: every lockdown step above has already been applied when the data model fails
     const dataModel = await this.ensureDataModelOrThrow(workspace.id, locale);
@@ -140,6 +142,7 @@ export class WschatBridgeWorkspaceEnforcementService {
       activeApiKeys,
       serviceKeyActive,
       webhooks,
+      actionsTargetStored,
       sso: 'not checked',
       ...dataModel,
       ...starterLayout,

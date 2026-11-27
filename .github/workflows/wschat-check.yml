@@ -78,7 +78,11 @@ jobs:
 
       - name: Unit tests (wschat-bridge)
         working-directory: packages/twenty-server
-        run: npx jest "$BRIDGE_DIR" --config=jest.config.mjs --ci
+        run: |
+          npx jest "$BRIDGE_DIR" \
+            src/modules/workflow/workflow-executor/workflow-actions/http-request \
+            src/engine/core-modules/tool/tools/http-tool \
+            --config=jest.config.mjs --ci
 
       - name: Lint (wschat-bridge)
         working-directory: packages/twenty-server

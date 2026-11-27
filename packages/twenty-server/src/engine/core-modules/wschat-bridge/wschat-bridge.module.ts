@@ -40,9 +40,9 @@ import { WschatBridgeController } from 'src/engine/core-modules/wschat-bridge/co
 import { WschatBridgeAuthorizeAppGuard } from 'src/engine/core-modules/wschat-bridge/guards/wschat-bridge-authorize-app.guard';
 import { WschatBridgeSecretGuard } from 'src/engine/core-modules/wschat-bridge/guards/wschat-bridge-secret.guard';
 import { WschatBridgeServiceUserConfiguredGuard } from 'src/engine/core-modules/wschat-bridge/guards/wschat-bridge-service-user-configured.guard';
+import { WschatBridgeActionsTargetModule } from 'src/engine/core-modules/wschat-bridge/wschat-bridge-actions-target.module';
 import { WschatBridgeAssistantsGateMiddleware } from 'src/engine/core-modules/wschat-bridge/middlewares/wschat-bridge-assistants-gate.middleware';
 import { WschatWorkspaceMemberFindManyPreQueryHook } from 'src/engine/core-modules/wschat-bridge/query-hooks/wschat-workspace-member-find-many.pre-query.hook';
-import { WschatBridgeActionsTargetService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-actions-target.service';
 import { WschatBridgeAssistantsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-assistants.service';
 import { WschatBridgeApiKeysService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-api-keys.service';
 import { WschatBridgeManagedRoleService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-managed-role.service';
@@ -126,6 +126,7 @@ import { WorkspaceMigrationModule } from 'src/engine/workspace-manager/workspace
     CoreEntityCacheModule,
     CoreWorkflowServicesModule,
     WorkspaceManyOrAllFlatEntityMapsCacheModule,
+    WschatBridgeActionsTargetModule,
   ],
   providers: [
     WschatBridgeService,
@@ -165,7 +166,6 @@ import { WorkspaceMigrationModule } from 'src/engine/workspace-manager/workspace
     WschatBridgeIndexViewRevertService,
     WschatWorkspaceMemberFindManyPreQueryHook,
     WschatBridgeFieldIconsService,
-    WschatBridgeActionsTargetService,
     // Found by DefinedToolRegistryService through discovery (README, "AI chat: WSChat steps")
     AddWschatStepTool,
     { provide: APP_GUARD, useClass: WschatBridgeAuthorizeAppGuard },

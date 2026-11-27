@@ -39,6 +39,9 @@ export class WschatBridgeEnforceReportDTO {
   // Reported only; nothing is deleted
   webhooks: number;
 
+  // WSChat's actions endpoint is stored for the AI chat's WSChat steps (the value is never reported)
+  actionsTargetStored: boolean;
+
   // SSO lives in enterprise-licensed files the bridge does not import
   sso: 'not checked';
 

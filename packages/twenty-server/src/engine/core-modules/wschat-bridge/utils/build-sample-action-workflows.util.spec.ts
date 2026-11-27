@@ -2,10 +2,10 @@ import { workflowManifestSchema } from 'twenty-shared/application';
 
 import { buildSampleActionWorkflows } from 'src/engine/core-modules/wschat-bridge/utils/build-sample-action-workflows.util';
 
-const TARGET = { url: 'https://wschat.org/crm-actions/v1/', token: 'tok_123' };
+const ACTIONS_URL = 'https://wschat.org/crm-actions/v1/';
 
 const build = (locale: 'en' | 'ru' = 'ru') =>
-  buildSampleActionWorkflows({ target: TARGET, locale });
+  buildSampleActionWorkflows({ actionsUrl: ACTIONS_URL, locale });
 
 const httpSteps = () =>
   build().flatMap(({ manifest }) =>
@@ -27,7 +27,7 @@ describe('buildSampleActionWorkflows', () => {
     }
   });
 
-  it('should call WSChat with the bearer token and a repeat key per record change', () => {
+  it('should call WSChat with no token in the step and a repeat key per record change', () => {
     const steps = httpSteps();
 
     expect(steps.map((step) => step.input.url)).toEqual([
@@ -39,7 +39,6 @@ describe('buildSampleActionWorkflows', () => {
     for (const step of steps) {
       expect(step.input.method).toBe('POST');
       expect(step.input.headers).toEqual({
-        Authorization: 'Bearer tok_123',
         'Content-Type': 'application/json',
       });
     }

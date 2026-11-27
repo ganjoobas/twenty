@@ -10,10 +10,8 @@ import { type WorkflowManifestReferences } from 'src/engine/core-modules/applica
 import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { CoreWorkflowMutationWorkspaceService } from 'src/engine/core-modules/workflow/services/core-workflow-mutation.workspace-service';
 import { type WschatBridgeLocale } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-data-model.constant';
-import {
-  buildSampleActionWorkflows,
-  type WschatBridgeActionsTarget,
-} from 'src/engine/core-modules/wschat-bridge/utils/build-sample-action-workflows.util';
+import { type WschatBridgeActionsTarget } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-actions-target.constant';
+import { buildSampleActionWorkflows } from 'src/engine/core-modules/wschat-bridge/utils/build-sample-action-workflows.util';
 import { buildWorkflowManifestReferences } from 'src/engine/core-modules/wschat-bridge/utils/build-workflow-manifest-references.util';
 import { WorkspaceManyOrAllFlatEntityMapsCacheService } from 'src/engine/metadata-modules/flat-entity/services/workspace-many-or-all-flat-entity-maps-cache.service';
 
@@ -38,7 +36,10 @@ export class WschatBridgeSampleActionWorkflowsService {
     target: WschatBridgeActionsTarget;
     locale: WschatBridgeLocale;
   }): Promise<string[]> {
-    const samples = buildSampleActionWorkflows({ target, locale });
+    const samples = buildSampleActionWorkflows({
+      actionsUrl: target.url,
+      locale,
+    });
     const existingNames = new Set(
       (
         (await this.workspaceRepository.query(

@@ -406,8 +406,8 @@ it, since it holds the API role.
 ### `POST /wschat-bridge/workspaces/:workspaceId/enforce` → `200`
 
 Body: `{ "adminRoleLabel"?: string, "locale"?: "en" | "ru", "assistantsEnabled"?: boolean, "actions"?: { "url": string, "token": string } }`
-(`actions`: see "Sample action workflows" and "AI chat: WSChat steps"; also
-accepted by `POST …/workspaces`, where it only creates the samples).
+(`actions`: see "Sample action workflows" and "WSChat token"; also accepted
+by `POST …/workspaces`).
 Brings a workspace to the rules above;
 used once for workspaces created before the service user existed and then on
 every full sync as drift repair. Every step checks first, so it is safe to
@@ -416,8 +416,7 @@ with `DELETE …/members`).
 
 0. External assistants switched to `assistantsEnabled` (absent: left as they
    are); while off, their grants are revoked (see "External assistants").
-   First, so a later failing step never leaves them open. Then `actions`,
-   when sent, is stored for the AI chat ("AI chat: WSChat steps").
+   First, so a later failing step never leaves them open.
 1. Service user becomes a member with the standard Admin role (repairing a
    half-made membership).
 2. Company-admin role created or its label, switches and flags re-applied.
@@ -427,7 +426,9 @@ with `DELETE …/members`).
 4. Owned settings re-applied where they drifted.
 5. API role ensured; every active key that does not hold it is revoked (keys
    are issued only through the bridge, so such a key is drift).
-6. Pending invitations and approved access domains deleted.
+6. Pending invitations and approved access domains deleted. Then `actions`,
+   when sent, is stored ("WSChat token"); a failure is logged by error type
+   only and reported as `actionsTargetStored: false`, never fails the call.
 7. Last, after every lockdown step: the WSChat data model is completed. When
    it fails, the earlier steps stay applied and the call answers
    `500 DATA_MODEL_FAILED` (or `409 SCHEMA_BUSY`); repeating it finishes the
@@ -461,6 +462,7 @@ Response:
   "activeApiKeys": 0,
   "serviceKeyActive": true,
   "webhooks": 0,
+  "actionsTargetStored": true,
   "sso": "not checked",
   "dataModelCreated": ["wschatCall", "person.wschatPhones"],
   "dataModelRepaired": [],
@@ -880,11 +882,11 @@ is subscribed until the company activates one), named in `locale`:
 | Conversation closed successfully → message to the client | `wschatConversation` updated, watching `state` and `outcomeTone` only; `state` CLOSED, `outcomeTone` SUCCESS, `wschatImported` false, has a person | find the person, `POST {url}/messages` `{contact, text, channel: "last", key}` |
 | Scheduled reminder to clients | cron `0 4 1 * *`: the 1st of each month at 04:00 in the SERVER's time zone (cron-parser without `tz`; 10:00 in Bishkek when the server runs on UTC) | find people (a placeholder condition that matches nobody, named "SET UP…", with the daily channel limits mentioned), loop, `POST {url}/messages` per person |
 
-- `actions` (`{url, token}`) comes with `enforce` or creation; every HTTP step
-  gets `Authorization: Bearer <token>`. Without `actions` the samples are not
-  created and the layout stays at version 3, so the next call that brings it
-  creates them. Besides the steps, the bridge keeps it only in one row for
-  the AI chat ("AI chat: WSChat steps") and never logs it.
+- `actions` (`{url, token}`) comes with `enforce` or creation. Without it the
+  samples are not created and the layout stays at version 3, so the next call
+  that brings it creates them. Their HTTP steps carry no token ("WSChat
+  token"); samples made before that change still carry `Authorization`, which
+  the stored token overrides when they run.
 - `key` (WSChat ignores a key it saw in the last day): the triggering record's
   `id:updatedAt`, so a retried step does nothing twice and a new change of the
   same record acts again; the reminder uses the person's `id:updatedAt`. No
@@ -899,19 +901,14 @@ is subscribed until the company activates one), named in `locale`:
   the record that started them; `wschatImported` excludes the history load.
 - Once: after version 4 they are ordinary workflows of the workspace; the
   company edits, activates or deletes them and no call recreates or rewrites
-  them. A changed token is NOT written into them: replacing it in the steps
-  is a manual edit (rare). A run that stopped part-way skips samples already
-  there by name.
-- Who sees the token: reading workflows, their versions and runs needs the
-  `WORKFLOWS` settings flag (resolvers' `AccessPolicyGuard`; the records API
-  grants the workflow objects only with that flag,
-  `compute-role-records-permissions.util.ts`; the AI chat's workflow tools
-  likewise, `workflow-tool.provider.ts`). Members and API-role keys (records
-  API, MCP) have no settings flags, so only the company admin role and the
-  service user see it. A run's step log redacts `Authorization`
-  (`build-http-request-step-log.util.ts`); the run's `state` keeps the step
-  definition and is behind the same flag; runs are system objects with no
-  timeline.
+  them. A run that stopped part-way skips samples already there by name.
+- Who sees a token still written in old steps: reading workflows, their
+  versions and runs needs the `WORKFLOWS` settings flag (resolvers'
+  `AccessPolicyGuard`; the records API grants the workflow objects only with
+  that flag, `compute-role-records-permissions.util.ts`; the AI chat's
+  workflow tools likewise, `workflow-tool.provider.ts`), so only the company
+  admin role and the service user; the AI chat's `get_workflow_current_version`
+  returns step settings as they are.
 
 ## Workflows
 
@@ -951,43 +948,71 @@ Hazards: there is no silent mode, so without the `wschatImported` filter a bulk
 load fires one run per matching record; and a workflow that updates a field its
 own trigger watches re-triggers itself.
 
+## WSChat token
+
+The token lives in one `core.keyValuePair` row per workspace (type
+`CONFIG_VARIABLE`, the workspace's id, key `WSCHAT_ACTIONS_TARGET`, value
+`{url, token}`), written by `enforce` and creation when they bring `actions`,
+only when it changed; `actions` absent leaves it. Workflow steps never hold
+it, so it is not shown in the editor, to the AI chat or in exports.
+
+At run time the workflow HTTP step (`http-request.workflow-action.ts`, an
+upstream edit) asks `WschatBridgeActionsTargetService.authorizeRequest`:
+when the resolved URL has the stored URL's origin and its path or a path
+below it at a `/` boundary (parsed with `URL`: look-alike hosts, other ports
+or schemes, user info and dot segments do not match), the stored token is
+set as `Authorization: Bearer`, replacing any Authorization the step has, so
+old steps keep working after a rotation and a copied token of another
+workspace never reaches WSChat. Only the run's own workspace row is read.
+Such a request follows no redirect (`maxRedirects: 0` through the tool
+context and the egress request limits). The step log redacts
+`Authorization` (`build-http-request-step-log.util.ts`), and a failed lookup
+leaves other HTTP steps as they are. The editor's "Test" of an HTTP step
+(`testHttpRequest`) gets no token, so WSChat refuses it: a test must not
+write to a real client.
+
 ## AI chat: WSChat steps
 
 The CRM's AI chat builds workflows that write to a client or create a task
 in WSChat with one tool, `add_wschat_step` (`tools/add-wschat-step.tool.ts`),
-instead of hand-made HTTP requests. It adds the samples' steps (find the
-client unless the trigger record is the person, then `POST {url}/messages` or
-`/tasks`) to a DRAFT version, with `key` = the HTTP step's id plus the
-record's `id:updatedAt`. `{{person.<field>}}` in the text is the client.
+instead of hand-made HTTP requests. It adds to a DRAFT version the samples'
+steps: a loop when `forEachRecordOf` names a FIND_RECORDS step, "find the
+client" unless the record is the person, then `POST {url}/messages` or
+`/tasks` with no token, `key` = the HTTP step's id plus the record's
+`id:updatedAt`. `{{person.<field>}}` (spaces allowed) in the text is the
+client. Steps go after `parentStepId` (default: the only last step, or the
+FIND_RECORDS step), before its only next step; an If/Else parent needs
+`branchId`. The answer carries step ids only; no target stored yet: the tool
+says WSChat has not passed its address. The same step twice (path and text)
+is refused; a save whose cache refresh failed after commit counts as done.
 
-- Target: every `enforce` that brings `actions` stores it in one
-  `core.keyValuePair` row (type `CONFIG_VARIABLE`, the workspace's id, key
-  `WSCHAT_ACTIONS_TARGET`, value `{url, token}`), rewritten only when it
-  changed; `actions` absent leaves it. No row yet: the tool answers that
-  WSChat has not passed its address. A changed token reaches only steps added
-  afterwards.
-- The tool never puts the token in its answer (step ids only; an error
-  message has it masked). Upstream's `get_workflow_current_version` returns
-  step settings as they are, the `Authorization` header included, to callers
-  with `WORKFLOWS`.
-- Wiring: an upstream `@DefineTool` (category `WORKFLOW`, so it is listed with
-  the workflow tools), a provider of this module that
-  `DefinedToolRegistryService` finds by discovery. Offered only with the
-  `WORKFLOWS` flag and never to application tokens. Preloaded in the AI chat
-  (`ai-chat-tool-names-to-preload.const.ts`), so its description, which holds
-  the rules below, is in front of the model on every turn; the standard
+- Records: a record `created`/`updated` trigger (`trigger.properties.after`),
+  a MANUAL trigger on one record (`trigger.payload`), or the items of a
+  FIND_RECORDS step for any trigger (CRON included). A daily schedule to an
+  unchanged record repeats its `key` within WSChat's one-day window.
+- Refused (`utils/plan-wschat-step.util.ts`): `upserted`/`deleted`;
+  `updated` without watched `fields`; `created` on an object with
+  `wschatImported` without `wschatImported IS false` (history arrives as
+  inserts; an `updated` trigger with fields cannot fire on it, and imported
+  records keep `true`, so it is not required there); a message on a
+  conversation trigger that is `created` or watches `lastMessageAt` /
+  `lastMessageFrom` without `lastMessageFrom IS ["CLIENT"]` (exactly that
+  option; the step's own reply and conversations an employee or the robot
+  starts would fire it); a message on `person.updated` watching
+  `wschatLastContactAt` / `wschatLastChannel`; a task step on a task trigger
+  (the WSChat task comes back as a CRM task); records with no single relation
+  to a person. A guard filter counts only with `IS` and in AND groups up to
+  the root (or with no groups), as `evaluateFilterConditions` reads them.
+- Wiring: an upstream `@DefineTool` (category `WORKFLOW`, listed with the
+  workflow tools), a provider of this module that `DefinedToolRegistryService`
+  finds by discovery. Offered only with the `WORKFLOWS` flag and never to
+  application tokens. Preloaded in the AI chat
+  (`ai-chat-tool-names-to-preload.const.ts`), so its short description, which
+  holds the rules, is in front of the model on every turn; the standard
   `workflow-building` skill is not edited, since skill rows of existing
   workspaces change only through an upgrade command.
-- The tool refuses (`utils/plan-wschat-step.util.ts`): triggers other than
-  record `created` / `updated`; `updated` without watched `fields`; objects
-  with `wschatImported` without the filter `wschatImported IS false`; a
-  conversation trigger watching `lastMessageAt` / `lastMessageFrom` without
-  `lastMessageFrom IS CLIENT` (every message, the step's own included,
-  updates both); a task step on a task trigger (the WSChat task comes back as
-  a CRM task); records with no single relation to a person.
-- The CRM gets no message text, only when the last message came and from
-  whom: the description tells the model to say that a workflow cannot react
-  to what a client wrote. It also tells it to leave the workflow a draft.
+- The CRM gets no message text: the description tells the model to say that
+  no step can react to what a client wrote, and to leave the workflow a draft.
 
 ## Records API used by WSChat
 

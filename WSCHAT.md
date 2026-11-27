@@ -42,6 +42,16 @@ This repository is upstream [Twenty](https://github.com/twentyhq/twenty) at tag
   the AI chat preloads the bridge's `add_wschat_step` tool (one added line), so
   the model sees how to build workflows acting in WSChat without loops (bridge
   README, "AI chat: WSChat steps").
+- WSChat's token stays out of workflow steps; the workflow HTTP step adds it
+  at run time to calls of the workspace's own WSChat endpoint and lets such a
+  call follow no redirect (bridge README, "WSChat token"):
+  `http-request.workflow-action.ts` (`postprocessInput`,
+  `buildToolExecutionContext`) and its module (imports the bridge's
+  `WschatBridgeActionsTargetModule`); `tool-backed.workflow-action.ts` passes
+  the resolved input to `buildToolExecutionContext`; `maxRedirects` added to
+  `tool-execution-context.type.ts`, `http-egress-request.type.ts` (limits),
+  `http-tool.ts` and `execute-http-egress-request.util.ts`. Specs:
+  `http-request.workflow-action.spec.ts`, `execute-http-egress-request.util.spec.ts`.
 - `twenty-front`: links in LINKS fields (`LinksFieldDisplay.tsx`) and the
   cell's "open link" button (`useGetSecondaryFieldButton.ts`) are handed to
   the page embedding the CRM instead of opening a new tab, see below

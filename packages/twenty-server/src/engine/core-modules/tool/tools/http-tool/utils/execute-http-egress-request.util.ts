@@ -4,7 +4,7 @@ import {
   type AxiosRequestConfig,
   isAxiosError,
 } from 'axios';
-import { isNull, isUndefined } from '@sniptt/guards';
+import { isNull, isNumber, isUndefined } from '@sniptt/guards';
 
 import { describeOutboundRequestError } from 'src/engine/core-modules/secure-http-client/utils/describe-outbound-request-error.util';
 import { type HttpEgressRequest } from 'src/engine/core-modules/tool/tools/http-tool/types/http-egress-request.type';
@@ -58,6 +58,9 @@ export const executeHttpEgressRequest = async (
       timeout: request.limits.timeoutMs,
       maxContentLength: request.limits.maxPayloadSizeBytes,
       maxBodyLength: request.limits.maxPayloadSizeBytes,
+      ...(isNumber(request.limits.maxRedirects) && {
+        maxRedirects: request.limits.maxRedirects,
+      }),
     };
 
     if (

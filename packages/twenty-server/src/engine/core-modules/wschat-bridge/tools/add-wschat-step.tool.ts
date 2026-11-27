@@ -9,15 +9,21 @@ import { DefineTool } from 'src/engine/core-modules/tool-provider/decorators/def
 import { BaseTool } from 'src/engine/core-modules/tool-provider/interfaces/base-tool.interface';
 import { type ToolExecuteArgs } from 'src/engine/core-modules/tool-provider/types/tool-execute-args.type';
 import { type ToolOutput } from 'src/engine/core-modules/tool/types/tool-output.type';
-import { CoreWorkflowVersionWriteService } from 'src/engine/core-modules/workflow/services/core-workflow-version-write.service';
+import {
+  CoreWorkflowVersionPostCommitError,
+  CoreWorkflowVersionWriteService,
+} from 'src/engine/core-modules/workflow/services/core-workflow-version-write.service';
 import { ADD_WSCHAT_STEP_TOOL_NAME } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-add-step-tool-name.constant';
 import { WschatBridgeActionsTargetService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-actions-target.service';
 import { buildWorkflowManifestReferences } from 'src/engine/core-modules/wschat-bridge/utils/build-workflow-manifest-references.util';
-import { buildWschatStepManifests } from 'src/engine/core-modules/wschat-bridge/utils/build-wschat-step-manifests.util';
+import {
+  buildWschatStepManifests,
+  findSameWschatStep,
+} from 'src/engine/core-modules/wschat-bridge/utils/build-wschat-step-manifests.util';
+import { insertWschatSteps } from 'src/engine/core-modules/wschat-bridge/utils/insert-wschat-steps.util';
 import { planWschatStep } from 'src/engine/core-modules/wschat-bridge/utils/plan-wschat-step.util';
 import { type AccessPolicy } from 'src/engine/guards/types/access-policy.type';
 import { WorkspaceManyOrAllFlatEntityMapsCacheService } from 'src/engine/metadata-modules/flat-entity/services/workspace-many-or-all-flat-entity-maps-cache.service';
-import { insertStep } from 'src/modules/workflow/workflow-builder/workflow-version-step/utils/insert-step';
 
 // As the workflow tools (WORKFLOWS flag); application tokens are refused outright, a stricter form of their reachability gate
 const ADD_WSCHAT_STEP_ACCESS_POLICY: AccessPolicy = {
@@ -48,9 +54,22 @@ const stepPlacementFields = {
     .string()
     .optional()
     .describe(
-      'The step the WSChat steps follow: a step id, or "trigger". Default: after the last step',
+      'The step the new steps follow (a step id or "trigger"), before its only next step. Default: after the last step, or after forEachRecordOf',
+    ),
+  branchId: z
+    .string()
+    .optional()
+    .describe('When parentStepId is an IF_ELSE step: the branch to add to'),
+  forEachRecordOf: z
+    .string()
+    .optional()
+    .describe(
+      'Id of a FIND_RECORDS step: act once per record it finds (needed for CRON and other triggers without a record)',
     ),
 };
+
+const TEXT_HINT =
+  '{{person.<field>}} is the client, e.g. {{person.name.firstName}}';
 
 const addWschatStepInputSchema = z.discriminatedUnion('action', [
   z.object({
@@ -60,43 +79,30 @@ const addWschatStepInputSchema = z.discriminatedUnion('action', [
       .string()
       .trim()
       .min(1)
-      .describe(
-        'The message, in the language the client is written to. {{person.<field>}} is the client, e.g. {{person.name.firstName}}',
-      ),
+      .describe(`The message, in the client's language. ${TEXT_HINT}`),
   }),
   z.object({
     ...stepPlacementFields,
     action: z.literal('task'),
-    title: z
-      .string()
-      .trim()
-      .min(1)
-      .describe(
-        'The task title; {{person.<field>}} is the client, e.g. {{person.name.firstName}}',
-      ),
+    title: z.string().trim().min(1).describe(`The task title. ${TEXT_HINT}`),
   }),
 ]);
 
+// Preloaded on every chat turn: only what the model needs (README, "AI chat: WSChat steps")
 @DefineTool({
   name: ADD_WSCHAT_STEP_TOOL_NAME,
   category: ToolCategory.WORKFLOW,
   icon: 'IconSettingsAutomation',
   accessPolicy: ADD_WSCHAT_STEP_ACCESS_POLICY,
-  description: `Add to a DRAFT workflow version a step acting in WSChat, the messenger hub this CRM is part of: action "message" writes to the client (WhatsApp, Telegram, Instagram or website chat, through the client's last channel), action "task" creates a task in WSChat. Use it for every workflow that must write to a client or make a WSChat task. NEVER build an HTTP request to WSChat yourself and never ask for its address or token: this tool adds them.
+  description: `Add a WSChat step to a DRAFT workflow: "message" writes to the client (WhatsApp, Telegram, Instagram or website chat, on the client's last channel), "task" creates a WSChat task. Use it whenever a workflow must write to a client or make a WSChat task; never build an HTTP request to WSChat or ask for its address or token.
 
-Adds a "find the client" step when the trigger record is not a person, then the WSChat step, after parentStepId. Returns only step ids.
+Set the trigger first: a record "created"/"updated" event, a MANUAL trigger on one record, or any trigger plus a FIND_RECORDS step passed as forEachRecordOf. Loops and history are refused:
+- "updated" must list settings.fields; do not add wschatImported there.
+- "created" on an object with wschatImported: filter wschatImported IS "false".
+- Client wrote: wschatConversation.updated, fields ["lastMessageAt"], filter lastMessageFrom IS ["CLIENT"] (same filter for wschatConversation.created). Closed successfully: fields ["state","outcomeTone"], state IS ["CLOSED"], outcomeTone IS ["SUCCESS"].
+- Guard filters sit in AND groups: {"stepFilterGroups":[{"id":"<G>","logicalOperator":"AND"}],"stepFilters":[{"id":"<uuid>","type":"SELECT","stepOutputKey":"{{trigger.properties.after.lastMessageFrom}}","operand":"IS","value":"[\"CLIENT\"]","stepFilterGroupId":"<G>"}]}
 
-Set the trigger first (create_complete_workflow with steps: [], or update_workflow_version_trigger). The tool refuses a trigger that would loop or fire on history:
-- DATABASE_EVENT "created" or "updated" only, on a record leading to a person (person, wschatConversation, wschatCall, an opportunity's point of contact...).
-- "updated" MUST list watched fields in settings.fields: WSChat updates its records after every message.
-- Objects with wschatImported need the filter wschatImported IS "false": history loaded into the CRM must not reach clients.
-- "The client wrote to us": eventName "wschatConversation.updated", fields ["lastMessageAt"], filters lastMessageFrom IS ["CLIENT"] and wschatImported IS "false" (plus channel IS ["WHATSAPP","WHATSAPP_BUSINESS"] for WhatsApp only, etc.). Without the lastMessageFrom filter the reply starts the workflow again.
-- "Closed successfully": "wschatConversation.updated", fields ["state","outcomeTone"], state IS ["CLOSED"], outcomeTone IS ["SUCCESS"], wschatImported IS "false".
-- Filter shape: settings.filter = {"stepFilterGroups":[{"id":"<uuid G>","logicalOperator":"AND"}],"stepFilters":[{"id":"<uuid>","type":"SELECT","stepOutputKey":"{{trigger.properties.after.lastMessageFrom}}","operand":"IS","value":"[\\"CLIENT\\"]","stepFilterGroupId":"<uuid G>"},{"id":"<uuid>","type":"BOOLEAN","stepOutputKey":"{{trigger.properties.after.wschatImported}}","operand":"IS","value":"false","stepFilterGroupId":"<uuid G>"}]}. Add personId IS_NOT_EMPTY (type UUID, value "") so records without a client do not run.
-
-The CRM never receives what clients write, only when the last message came and from whom: no workflow can react to the content of a message, and no CLASSIFY or AI_AGENT step can read it. Tell the user so plainly when asked for "if the message is about X".
-
-Leave the workflow a draft and do not activate it: a WSChat message reaches a real client. Tell the user to review it and switch it on.`,
+The CRM never gets message text: no step (CLASSIFY, AI_AGENT) can react to what a client wrote; say so. Leave the workflow a draft for the user to activate.`,
 })
 export class AddWschatStepTool extends BaseTool<
   typeof addWschatStepInputSchema
@@ -135,6 +141,19 @@ export class AddWschatStepTool extends BaseTool<
             coreWorkflowVersionId: input.coreWorkflowVersionId,
           },
         );
+      const existingSteps = steps ?? [];
+      const sameStep = findSameWschatStep({
+        steps: existingSteps,
+        actionsUrl: target.url,
+        request: input,
+      });
+
+      if (isDefined(sameStep)) {
+        const problem = `The draft already has this WSChat step ("${sameStep.name}", ${sameStep.id}); nothing was added.`;
+
+        return { success: false, message: problem, error: problem };
+      }
+
       const flatMaps =
         await this.flatEntityMapsCacheService.getOrRecomputeManyOrAllFlatEntityMaps(
           {
@@ -145,8 +164,10 @@ export class AddWschatStepTool extends BaseTool<
       const plan = planWschatStep({
         action: input.action,
         trigger,
-        steps: steps ?? [],
+        steps: existingSteps,
         parentStepId: input.parentStepId,
+        branchId: input.branchId,
+        forEachRecordOf: input.forEachRecordOf,
         ...flatMaps,
       });
 
@@ -155,62 +176,54 @@ export class AddWschatStepTool extends BaseTool<
       }
 
       const references = buildWorkflowManifestReferences(flatMaps);
-      const actions = buildWschatStepManifests({
+      const { steps: manifests, isLoop } = buildWschatStepManifests({
         request: input,
-        target,
-        personIdVariable: plan.personIdVariable,
+        actionsUrl: target.url,
+        source: plan.source,
+        personJoinColumn: plan.personJoinColumn,
         locale: context.locale === 'ru-RU' ? 'ru' : 'en',
-      }).map((step) =>
+      });
+      const actions = manifests.map((step) =>
         fromWorkflowStepManifestToActionOrThrow({
           step: workflowStepManifestSchema.parse(step),
           references,
         }),
       );
-
-      // One after the other, so each new step follows the previous one
-      const content = actions.reduce(
-        (current, action, index) => {
-          const inserted = insertStep({
-            existingSteps: current.steps,
-            existingTrigger: current.trigger,
-            insertedStep: action,
-            parentStepId:
-              index === 0 ? plan.parentStepId : actions[index - 1].id,
-          });
-
-          return {
-            steps: inserted.updatedSteps,
-            trigger: inserted.updatedTrigger,
-          };
-        },
-        { steps: steps ?? [], trigger },
-      );
-
-      await this.coreWorkflowVersionWriteService.writeContent({
-        workspaceId,
-        coreWorkflowVersionId: input.coreWorkflowVersionId,
-        expectedVersion: coreWorkflowVersion,
-        ...content,
+      const content = insertWschatSteps({
+        steps: existingSteps,
+        trigger,
+        actions,
+        isLoop,
+        placement: plan.placement,
       });
+
+      try {
+        await this.coreWorkflowVersionWriteService.writeContent({
+          workspaceId,
+          coreWorkflowVersionId: input.coreWorkflowVersionId,
+          expectedVersion: coreWorkflowVersion,
+          ...content,
+        });
+      } catch (error) {
+        // Saved; only the cache refresh after the commit failed
+        if (!(error instanceof CoreWorkflowVersionPostCommitError)) {
+          throw error;
+        }
+      }
 
       return {
         success: true,
-        message: `Added ${actions.map(({ name }) => `"${name}"`).join(' and ')} to the draft. Call validate_workflow once the workflow is complete, but do not activate it: tell the user to review and activate it.`,
+        message: `Added ${actions.map(({ name }) => `"${name}"`).join(', ')}. Call validate_workflow once the workflow is complete, do not activate it: the user reviews and activates it.`,
         result: {
           coreWorkflowVersionId: input.coreWorkflowVersionId,
           stepIds: actions.map(({ id }) => id),
         },
       };
     } catch (error) {
-      // The token is inside the steps; never let an error echo it back
-      const reason = (error instanceof Error ? error.message : String(error))
-        .split(target.token)
-        .join('***');
-
       return {
         success: false,
-        message: `Failed to add the WSChat step: ${reason}`,
-        error: reason,
+        message: `Failed to add the WSChat step: ${error instanceof Error ? error.message : String(error)}`,
+        error: error instanceof Error ? error.message : String(error),
       };
     }
   }

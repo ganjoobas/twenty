@@ -68,6 +68,7 @@ export class HttpTool implements Tool {
       limits: {
         timeoutMs: HTTP_TOOL_TIMEOUT_MS,
         maxPayloadSizeBytes: HTTP_TOOL_MAX_PAYLOAD_SIZE_BYTES,
+        maxRedirects: context.maxRedirects,
       },
       context: {
         workspaceId: context.workspaceId,

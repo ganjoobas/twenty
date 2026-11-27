@@ -15,6 +15,8 @@ export type ToolExecutionContext = {
   workflowRunId?: string;
   workflowStepId?: string;
   outboundRequestSource?: OutboundRequestSource;
+  // 0 when the request carries a credential that must not follow a redirect
+  maxRedirects?: number;
   authContext?: WorkspaceAuthContext;
   onCodeExecutionUpdate?: CodeExecutionStreamEmitter;
 };

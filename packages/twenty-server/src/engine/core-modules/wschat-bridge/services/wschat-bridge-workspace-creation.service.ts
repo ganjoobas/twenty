@@ -19,6 +19,7 @@ import { WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE } from 'src/engine/core-modules/wschat
 import { WschatBridgeManagedRoleService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-managed-role.service';
 import { WschatBridgeMemberUpsertService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-member-upsert.service';
 import { WschatBridgeOnboardingService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-onboarding.service';
+import { WschatBridgeActionsTargetService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-actions-target.service';
 import { WschatBridgeSubdomainService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-subdomain.service';
 import { type WschatBridgeLocale } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-data-model.constant';
 import { WschatBridgeSampleWorkflowsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-sample-workflows.service';
@@ -71,6 +72,7 @@ export class WschatBridgeWorkspaceCreationService {
     private readonly sampleRecordsService: WschatBridgeSampleRecordsService,
     private readonly sampleWorkflowsService: WschatBridgeSampleWorkflowsService,
     private readonly workspaceLookupService: WschatBridgeWorkspaceLookupService,
+    private readonly actionsTargetService: WschatBridgeActionsTargetService,
   ) {}
 
   async createWorkspace(
@@ -123,6 +125,9 @@ export class WschatBridgeWorkspaceCreationService {
       workspace.id,
       input.locale ?? 'en',
     );
+
+    // Never throws; the samples' HTTP steps take their token from it
+    await this.actionsTargetService.store(workspace.id, input.actions);
 
     // Never throws; what failed is retried by enforce
     if (dataModelReady) {
