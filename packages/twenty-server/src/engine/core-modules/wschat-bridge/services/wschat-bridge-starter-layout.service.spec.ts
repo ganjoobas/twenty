@@ -145,7 +145,7 @@ describe('WschatBridgeStarterLayoutService', () => {
     expect(second.starterLayoutCreated).toEqual([]);
   });
 
-  it('should give a workspace at version 4 only the main views of version 5', async () => {
+  it('should give a workspace at version 4 only the main views of versions 5 and 6', async () => {
     storedVersion = 4;
 
     const result = await service.apply({
@@ -160,16 +160,23 @@ describe('WschatBridgeStarterLayoutService', () => {
       starterIndexViewsService.apply.mock.calls.map(
         ([{ definition }]) => definition.reportName,
       ),
-    ).toEqual(['wschatConversation.main', 'wschatCall.main']);
+    ).toEqual([
+      'wschatConversation.main',
+      'wschatCall.main',
+      'task.index',
+      'task.byType.show',
+    ]);
     expect(result.starterLayoutChanged).toEqual([
       'wschatConversation.index',
       'wschatConversation.main',
+      'task.index',
+      'task.byType.show',
     ]);
     expect(result.starterLayoutSkipped).toEqual([
       'wschatCall.index',
       'wschatCall.main',
     ]);
-    expect(storedVersion).toBe(5);
+    expect(storedVersion).toBe(6);
   });
 
   it('should give a workspace at version 2 only the workflow switch-off, and keep 2 if it fails', async () => {
@@ -302,7 +309,7 @@ describe('WschatBridgeStarterLayoutService', () => {
       'workflowSample.closedConversationMessage',
       'workflowSample.scheduledReminder',
     ]);
-    expect(storedVersion).toBe(5);
+    expect(storedVersion).toBe(6);
   });
 
   // The live defect of image 11: creation brings no actions, so nothing was recorded and every enforce

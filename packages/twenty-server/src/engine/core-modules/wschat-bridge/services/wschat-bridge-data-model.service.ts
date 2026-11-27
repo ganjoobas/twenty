@@ -201,7 +201,7 @@ export class WschatBridgeDataModelService {
                   ),
                 }
               : {}),
-            isUIEditable: false,
+            isUIEditable: definition.isUIEditable ?? false,
             isLabelSyncedWithName: false,
             ...(definition.type === FieldMetadataType.RELATION
               ? {}

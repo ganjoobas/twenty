@@ -464,7 +464,7 @@ Response:
   "starterLayoutChanged": ["person.index", "company.index", "workflow.quickLead", "workflow.createCompanyFromPerson", "wschatConversation.main", "wschatCall.main"],
   "starterLayoutSkipped": [],
   "starterLayoutFailed": [],
-  "starterLayoutVersion": 5
+  "starterLayoutVersion": 6
 }
 ```
 
@@ -575,9 +575,19 @@ when `GET /.well-known/oauth-protected-resource/mcp` on the same host answers
 ## WSChat data model
 
 Created at workspace creation and completed by `enforce`, all owned by the
-workspace custom application, all fields read-only in the UI
-(`isUIEditable: false`; the records API does not check that flag, so WSChat's
-key writes them). Each `*Id` field is unique and is the upsert match key of
+workspace custom application, all fields read-only in the UI except
+`task.wschatShow`, which people tick in the CRM (`isUIEditable: false`; the
+records API does not check that flag, so WSChat's key writes them). A new
+caller field shows in record pages by itself: the standard FIELDS widgets
+declare `newFieldDefaultVisibility: true` (`fieldRecordPageViewFieldOnCreate`).
+
+Polling tasks put on a client later: adding or removing a task target does not
+touch the task's `updatedAt` (no hook does; only deleting a task soft-deletes
+its targets, `task-post-query-hook.service.ts`). Poll `taskTargets` instead:
+`filter=or(createdAt[gte]:"…",updatedAt[gte]:"…",deletedAt[gte]:"…")` (trashed
+rows come back only when the filter names `deletedAt`); each row carries
+`taskId` and `targetPersonId` (or `targetCompanyId` / `targetOpportunityId`).
+The app removes a target with a soft delete (`useUpdateJunctionRelationFromCell`). Each `*Id` field is unique and is the upsert match key of
 its object. Definitions, universal identifiers and both label sets (`en`,
 `ru`) are in `constants/wschat-bridge-data-model.constant.ts`.
 
@@ -601,6 +611,7 @@ rejects any other value. Channel values (`ch`): `WHATSAPP`, `WHATSAPP_BUSINESS`,
 | task | `wschatAuthor` | SELECT | `EMPLOYEE`, `ROBOT`, `OTHER` |
 | task | `wschatUrl` | LINKS | |
 | task | `wschatImported` | BOOLEAN, default `false`, not null | |
+| task | `wschatShow` ("Show in WSChat" / «Показать в WSChat») | BOOLEAN, default `false`, not null, **editable in the UI** | |
 | company | `wschatContactId` (unique), `wschatPhones` | TEXT | |
 | company | `wschatUrl` | LINKS | |
 | company | `wschatImported` | BOOLEAN, default `false`, not null | |
@@ -801,6 +812,7 @@ view. Standard objects have only the INDEX table.
 | 2 | person | INDEX | wschatLastContactAt, wschatLastChannel, wschatUrl appended, unless already on the view (shown or hidden) |
 | 2 | company | INDEX | wschatPhones, wschatUrl appended, same rule |
 | 5 | wschatConversation | initial | renamed All conversations / Все обращения, moved to position 0; columns name, person, channel, state, outcome, responsible, lastMessageAt, lastMessageFrom, startedAt, wschatUrl, the others hidden after them |
+| 6 | task | INDEX, and our "By type" board | `wschatShow` appended, same rule as version 2 |
 | 5 | wschatCall | initial | renamed All calls / Все звонки, position 0; columns name, person, direction, status, channel, startedAt, durationSeconds, answeredBy, outcome, summary, wschatUrl |
 
 - Version 2 used to rename and reshape the INDEX views of conversations and

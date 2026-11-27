@@ -409,3 +409,21 @@ describe('isReservedApiKeyName', () => {
     expect(isReservedApiKeyName('WSChat sync')).toBe(false);
   });
 });
+
+describe('task.wschatShow', () => {
+  it('should be the only field people edit, a NOT NULL tick that starts unticked', () => {
+    const editable = WSCHAT_BRIDGE_FIELDS.filter(
+      ({ isUIEditable }) => isUIEditable === true,
+    );
+
+    expect(editable.map(({ name }) => name)).toEqual(['wschatShow']);
+    expect(editable[0]).toEqual(
+      expect.objectContaining({
+        objectUniversalIdentifier: STANDARD_OBJECTS.task.universalIdentifier,
+        type: FieldMetadataType.BOOLEAN,
+        defaultValue: false,
+        label: { en: 'Show in WSChat', ru: 'Показать в WSChat' },
+      }),
+    );
+  });
+});

@@ -86,9 +86,11 @@ export class WschatBridgeStarterIndexViewsService {
       (candidate) =>
         isDefined(candidate) &&
         candidate.objectMetadataId === flatObjectMetadata?.id &&
-        (definition.view === 'initial'
-          ? candidate.universalIdentifier === initialViewUniversalIdentifier
-          : candidate.key === ViewKey.INDEX) &&
+        this.isTargetView({
+          definition,
+          candidate,
+          initialViewUniversalIdentifier,
+        }) &&
         !isDefined(candidate.deletedAt),
     );
 
@@ -290,5 +292,26 @@ export class WschatBridgeStarterIndexViewsService {
     );
 
     return isDefined(definition) ? Object.values(definition.labelPlural) : [];
+  }
+
+  private isTargetView({
+    definition,
+    candidate,
+    initialViewUniversalIdentifier,
+  }: {
+    definition: WschatBridgeIndexViewDefinition;
+    candidate: { universalIdentifier: string; key: ViewKey | null };
+    initialViewUniversalIdentifier: string;
+  }): boolean {
+    switch (definition.view) {
+      case 'initial':
+        return candidate.universalIdentifier === initialViewUniversalIdentifier;
+      case 'starter':
+        return (
+          candidate.universalIdentifier === definition.viewUniversalIdentifier
+        );
+      case 'index':
+        return candidate.key === ViewKey.INDEX;
+    }
   }
 }

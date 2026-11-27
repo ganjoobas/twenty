@@ -38,8 +38,10 @@ export type WschatBridgeFieldDefinition = {
   icon: string;
   label: WschatBridgeLocalizedText;
   description?: WschatBridgeLocalizedText;
-  // Only for wschatImported: NOT NULL with a default, so existing rows read false and a filter "is false" works
+  // BOOLEAN only: NOT NULL with a default, so existing rows read it and a filter "is false" works
   defaultValue?: boolean;
+  // People set it in the CRM; every other field is written by WSChat only
+  isUIEditable?: true;
   // SELECT only: the options created with the field
   options?: WschatBridgeOptionDefinition[];
   // SELECT only: options managed per company afterwards
@@ -357,6 +359,21 @@ export const WSCHAT_BRIDGE_FIELDS: WschatBridgeFieldDefinition[] = [
     label: OPEN_IN_WSCHAT,
   }),
   imported(TASK, '66149813-c9df-47e0-99c0-940f972d2ea7'),
+  // Owner, 27.11.2026: a task made in the CRM goes to WSChat when it is on a client or this is ticked
+  field({
+    objectUniversalIdentifier: TASK,
+    universalIdentifier: '64300b05-7c47-4a9e-a723-48a1d9225e0b',
+    name: 'wschatShow',
+    type: BOOLEAN,
+    icon: 'IconMessageShare',
+    label: { en: 'Show in WSChat', ru: 'Показать в WSChat' },
+    description: {
+      en: 'The task appears in WSChat tasks and is kept in sync both ways',
+      ru: 'Задача появится в задачах WSChat и будет синхронизироваться в обе стороны',
+    },
+    defaultValue: false,
+    isUIEditable: true,
+  }),
   // company
   field({
     objectUniversalIdentifier: COMPANY,

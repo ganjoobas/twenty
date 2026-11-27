@@ -16,7 +16,7 @@ export const WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION_KEY =
   'WSCHAT_STARTER_LAYOUT_VERSION';
 
 // Raise it with new views tagged with the new number; a workspace only gets views newer than what it has
-export const WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION = 5;
+export const WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION = 6;
 
 // Version that switches off upstream's sample workflows (WschatBridgeSampleWorkflowsService)
 export const WSCHAT_BRIDGE_SAMPLE_WORKFLOWS_LAYOUT_VERSION = 3;
@@ -178,7 +178,9 @@ export type WschatBridgeIndexViewDefinition = {
   mode: 'reshape' | 'append';
   // index: the INDEX view (what people see on standard objects); initial: the view createOneObject adds to a
   // custom object, which the app opens first, as the first non-INDEX view by position
-  view: 'index' | 'initial';
+  view: 'index' | 'initial' | 'starter';
+  // view: 'starter' only: one of WSCHAT_BRIDGE_STARTER_VIEWS
+  viewUniversalIdentifier?: string;
   name?: WschatBridgeLocalizedText;
   position?: number;
   fieldNames: string[];
@@ -263,5 +265,23 @@ export const WSCHAT_BRIDGE_INDEX_VIEWS: WschatBridgeIndexViewDefinition[] = [
     name: { en: 'All calls', ru: 'Все звонки' },
     position: 0,
     fieldNames: CALL_MAIN_FIELDS,
+  },
+  // The "Show in WSChat" tick where people set tasks up: the INDEX table and our board, which opens first
+  {
+    version: 6,
+    reportName: 'task.index',
+    objectUniversalIdentifier: STANDARD_OBJECTS.task.universalIdentifier,
+    mode: 'append',
+    view: 'index',
+    fieldNames: ['wschatShow'],
+  },
+  {
+    version: 6,
+    reportName: 'task.byType.show',
+    objectUniversalIdentifier: STANDARD_OBJECTS.task.universalIdentifier,
+    mode: 'append',
+    view: 'starter',
+    viewUniversalIdentifier: 'de8e64a7-4248-4dd1-a6ca-b7e803a16238',
+    fieldNames: ['wschatShow'],
   },
 ];
