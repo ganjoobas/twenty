@@ -7,6 +7,7 @@ import { KeyValuePairService } from 'src/engine/core-modules/key-value-pair/key-
 import { type WschatBridgeLocale } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-data-model.constant';
 import {
   WSCHAT_BRIDGE_INDEX_VIEWS,
+  WSCHAT_BRIDGE_SAMPLE_ACTIONS_LAYOUT_VERSION,
   WSCHAT_BRIDGE_SAMPLE_WORKFLOWS_LAYOUT_VERSION,
   WSCHAT_BRIDGE_STANDARD_OPTION_LABELS,
   WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION,
@@ -15,6 +16,8 @@ import {
   type WschatBridgeStandardOptionLabels,
   type WschatBridgeStarterLayoutKeyValueTypesMap,
 } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-starter-layout.constant';
+import { WschatBridgeSampleActionWorkflowsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-sample-action-workflows.service';
+import { type WschatBridgeActionsTarget } from 'src/engine/core-modules/wschat-bridge/utils/build-sample-action-workflows.util';
 import { WschatBridgeSampleWorkflowsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-sample-workflows.service';
 import { WschatBridgeStarterIndexViewsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-starter-index-views.service';
 import { WschatBridgeStarterViewsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-starter-views.service';
@@ -62,14 +65,17 @@ export class WschatBridgeStarterLayoutService {
     private readonly starterViewsService: WschatBridgeStarterViewsService,
     private readonly starterIndexViewsService: WschatBridgeStarterIndexViewsService,
     private readonly sampleWorkflowsService: WschatBridgeSampleWorkflowsService,
+    private readonly sampleActionWorkflowsService: WschatBridgeSampleActionWorkflowsService,
   ) {}
 
   async apply({
     workspaceId,
     locale,
+    actions,
   }: {
     workspaceId: string;
     locale: WschatBridgeLocale;
+    actions?: WschatBridgeActionsTarget;
   }): Promise<WschatBridgeStarterLayoutResult> {
     const result: WschatBridgeStarterLayoutResult = {
       starterLayoutCreated: [],
@@ -97,6 +103,7 @@ export class WschatBridgeStarterLayoutService {
         workspaceId,
         locale,
         result,
+        actions,
       );
     } catch (error) {
       result.starterLayoutFailed.push(`views: ${describeError(error)}`);
@@ -115,6 +122,7 @@ export class WschatBridgeStarterLayoutService {
     workspaceId: string,
     locale: WschatBridgeLocale,
     result: WschatBridgeStarterLayoutResult,
+    actions: WschatBridgeActionsTarget | undefined,
   ): Promise<number> {
     const [stored] = await this.keyValuePairService.get({
       ...VERSION_ROW,
@@ -188,6 +196,28 @@ export class WschatBridgeStarterLayoutService {
       } catch (error) {
         isComplete = false;
         result.starterLayoutFailed.push(`workflows: ${describeError(error)}`);
+      }
+    }
+
+    if (appliedVersion < WSCHAT_BRIDGE_SAMPLE_ACTIONS_LAYOUT_VERSION) {
+      if (actions === undefined) {
+        // Pending, not failed: the next call that brings `actions` creates them
+        isComplete = false;
+      } else {
+        try {
+          result.starterLayoutCreated.push(
+            ...(await this.sampleActionWorkflowsService.createSamples({
+              workspaceId,
+              target: actions,
+              locale,
+            })),
+          );
+        } catch (error) {
+          isComplete = false;
+          result.starterLayoutFailed.push(
+            `action samples: ${describeError(error)}`,
+          );
+        }
       }
     }
 

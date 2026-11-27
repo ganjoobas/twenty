@@ -23,6 +23,7 @@ import {
   type WschatBridgeDataModelResult,
   WschatBridgeDataModelService,
 } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-data-model.service';
+import { type WschatBridgeActionsTarget } from 'src/engine/core-modules/wschat-bridge/utils/build-sample-action-workflows.util';
 import { WschatBridgeStarterLayoutService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-starter-layout.service';
 import { WschatBridgeServiceUserService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-service-user.service';
 import { WschatBridgeWorkspaceLookupService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-lookup.service';
@@ -68,10 +69,12 @@ export class WschatBridgeWorkspaceEnforcementService {
       adminRoleLabel,
       locale,
       assistantsEnabled,
+      actions,
     }: {
       adminRoleLabel?: string;
       locale?: WschatBridgeLocale;
       assistantsEnabled?: boolean;
+      actions?: WschatBridgeActionsTarget;
     },
   ): Promise<WschatBridgeEnforceReportDTO> {
     const workspace =
@@ -113,6 +116,7 @@ export class WschatBridgeWorkspaceEnforcementService {
     const starterLayout = await this.starterLayoutService.apply({
       workspaceId: workspace.id,
       locale: locale ?? 'en',
+      actions,
     });
 
     const report: WschatBridgeEnforceReportDTO = {

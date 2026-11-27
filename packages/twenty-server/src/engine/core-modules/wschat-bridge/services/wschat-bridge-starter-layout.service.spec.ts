@@ -7,6 +7,7 @@ import {
 import { WschatBridgeStarterLayoutService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-starter-layout.service';
 
 const WORKSPACE_ID = '11111111-1111-4111-8111-111111111111';
+const ACTIONS = { url: 'https://wschat.org/crm-actions/v1', token: 'secret' };
 const STATUS_FIELD_ID = 'status-field';
 const TASK_STATUS_UID = STANDARD_OBJECTS.task.fields.status.universalIdentifier;
 
@@ -67,6 +68,14 @@ describe('WschatBridgeStarterLayoutService', () => {
     })),
   };
 
+  const sampleActionWorkflowsService = {
+    createSamples: jest.fn(async () => [
+      'workflowSample.missedCallTask',
+      'workflowSample.closedConversationMessage',
+      'workflowSample.scheduledReminder',
+    ]),
+  };
+
   const service = new WschatBridgeStarterLayoutService(
     keyValuePairService as never,
     workspaceCacheService as never,
@@ -74,6 +83,7 @@ describe('WschatBridgeStarterLayoutService', () => {
     starterViewsService as never,
     starterIndexViewsService as never,
     sampleWorkflowsService as never,
+    sampleActionWorkflowsService as never,
   );
 
   beforeEach(() => {
@@ -86,11 +96,15 @@ describe('WschatBridgeStarterLayoutService', () => {
     const first = await service.apply({
       workspaceId: WORKSPACE_ID,
       locale: 'ru',
+      actions: ACTIONS,
     });
 
-    expect(first.starterLayoutCreated).toEqual(
-      WSCHAT_BRIDGE_STARTER_VIEWS.map(({ reportName }) => reportName),
-    );
+    expect(first.starterLayoutCreated).toEqual([
+      ...WSCHAT_BRIDGE_STARTER_VIEWS.map(({ reportName }) => reportName),
+      'workflowSample.missedCallTask',
+      'workflowSample.closedConversationMessage',
+      'workflowSample.scheduledReminder',
+    ]);
     expect(first.starterLayoutVersion).toBe(
       WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION,
     );
@@ -99,11 +113,13 @@ describe('WschatBridgeStarterLayoutService', () => {
     starterViewsService.createIfMissing.mockClear();
     starterIndexViewsService.apply.mockClear();
     sampleWorkflowsService.deactivateFactoryWorkflows.mockClear();
+    sampleActionWorkflowsService.createSamples.mockClear();
 
     // A company that deleted our views does not get them back
     const second = await service.apply({
       workspaceId: WORKSPACE_ID,
       locale: 'ru',
+      actions: ACTIONS,
     });
 
     expect(starterViewsService.createIfMissing).not.toHaveBeenCalled();
@@ -111,6 +127,7 @@ describe('WschatBridgeStarterLayoutService', () => {
     expect(
       sampleWorkflowsService.deactivateFactoryWorkflows,
     ).not.toHaveBeenCalled();
+    expect(sampleActionWorkflowsService.createSamples).not.toHaveBeenCalled();
     expect(second.starterLayoutCreated).toEqual([]);
   });
 
@@ -120,6 +137,7 @@ describe('WschatBridgeStarterLayoutService', () => {
     const result = await service.apply({
       workspaceId: WORKSPACE_ID,
       locale: 'ru',
+      actions: ACTIONS,
     });
 
     expect(starterViewsService.createIfMissing).not.toHaveBeenCalled();
@@ -127,7 +145,7 @@ describe('WschatBridgeStarterLayoutService', () => {
     expect(
       sampleWorkflowsService.deactivateFactoryWorkflows,
     ).toHaveBeenCalledTimes(1);
-    expect(result.starterLayoutVersion).toBe(3);
+    expect(result.starterLayoutVersion).toBe(4);
   });
 
   it('should give a workspace at version 2 only the workflow switch-off, and keep 2 if it fails', async () => {
@@ -139,6 +157,7 @@ describe('WschatBridgeStarterLayoutService', () => {
     const result = await service.apply({
       workspaceId: WORKSPACE_ID,
       locale: 'ru',
+      actions: ACTIONS,
     });
 
     expect(starterIndexViewsService.apply).not.toHaveBeenCalled();
@@ -153,6 +172,7 @@ describe('WschatBridgeStarterLayoutService', () => {
     const result = await service.apply({
       workspaceId: WORKSPACE_ID,
       locale: 'ru',
+      actions: ACTIONS,
     });
 
     expect(result.starterLayoutFailed).toEqual([
@@ -176,6 +196,7 @@ describe('WschatBridgeStarterLayoutService', () => {
     const failed = await service.apply({
       workspaceId: WORKSPACE_ID,
       locale: 'ru',
+      actions: ACTIONS,
     });
 
     expect(failed.starterLayoutFailed).toEqual(['wschatCall.missed: boom']);
@@ -187,6 +208,7 @@ describe('WschatBridgeStarterLayoutService', () => {
     const finished = await service.apply({
       workspaceId: WORKSPACE_ID,
       locale: 'ru',
+      actions: ACTIONS,
     });
 
     expect(finished.starterLayoutFailed).toEqual([]);
@@ -199,6 +221,7 @@ describe('WschatBridgeStarterLayoutService', () => {
     const result = await service.apply({
       workspaceId: WORKSPACE_ID,
       locale: 'ru',
+      actions: ACTIONS,
     });
 
     expect(result.starterLayoutRelabelled).toContain('task.status');
@@ -222,9 +245,41 @@ describe('WschatBridgeStarterLayoutService', () => {
     const result = await service.apply({
       workspaceId: WORKSPACE_ID,
       locale: 'en',
+      actions: ACTIONS,
     });
 
     expect(fieldMetadataService.updateOneField).not.toHaveBeenCalled();
     expect(result.starterLayoutFailed).toEqual(['views: db down']);
+  });
+
+  it('should create the action samples once, and wait for a call bringing actions', async () => {
+    storedVersion = 3;
+
+    const withoutActions = await service.apply({
+      workspaceId: WORKSPACE_ID,
+      locale: 'ru',
+    });
+
+    expect(sampleActionWorkflowsService.createSamples).not.toHaveBeenCalled();
+    expect(withoutActions.starterLayoutFailed).toEqual([]);
+    expect(withoutActions.starterLayoutVersion).toBe(3);
+
+    const withActions = await service.apply({
+      workspaceId: WORKSPACE_ID,
+      locale: 'ru',
+      actions: ACTIONS,
+    });
+
+    expect(sampleActionWorkflowsService.createSamples).toHaveBeenCalledWith({
+      workspaceId: WORKSPACE_ID,
+      target: ACTIONS,
+      locale: 'ru',
+    });
+    expect(withActions.starterLayoutCreated).toEqual([
+      'workflowSample.missedCallTask',
+      'workflowSample.closedConversationMessage',
+      'workflowSample.scheduledReminder',
+    ]);
+    expect(storedVersion).toBe(4);
   });
 });

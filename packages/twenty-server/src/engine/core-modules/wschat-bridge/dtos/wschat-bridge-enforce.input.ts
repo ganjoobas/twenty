@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import {
   IsBoolean,
   IsIn,
@@ -5,12 +6,14 @@ import {
   IsString,
   Matches,
   MaxLength,
+  ValidateNested,
 } from 'class-validator';
 
 import {
   WSCHAT_BRIDGE_LOCALES,
   type WschatBridgeLocale,
 } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-data-model.constant';
+import { WschatBridgeActionsInput } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-actions.input';
 
 export class WschatBridgeEnforceInput {
   @IsOptional()
@@ -30,4 +33,10 @@ export class WschatBridgeEnforceInput {
   @IsOptional()
   @IsBoolean()
   assistantsEnabled?: boolean;
+
+  // WSChat's actions endpoint for the sample workflows (README, "Sample action workflows"); never stored or logged
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => WschatBridgeActionsInput)
+  actions?: WschatBridgeActionsInput;
 }

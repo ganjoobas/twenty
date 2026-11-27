@@ -364,7 +364,8 @@ it, since it holds the API role.
 
 ### `POST /wschat-bridge/workspaces/:workspaceId/enforce` → `200`
 
-Body: `{ "adminRoleLabel"?: string, "locale"?: "en" | "ru", "assistantsEnabled"?: boolean }`.
+Body: `{ "adminRoleLabel"?: string, "locale"?: "en" | "ru", "assistantsEnabled"?: boolean, "actions"?: { "url": string, "token": string } }`
+(`actions`: see "Sample action workflows"; also accepted by `POST …/workspaces`).
 Brings a workspace to the rules above;
 used once for workspaces created before the service user existed and then on
 every full sync as drift repair. Every step checks first, so it is safe to
@@ -427,7 +428,7 @@ Response:
   "starterLayoutChanged": ["wschatConversation.index", "wschatCall.index", "person.index", "company.index", "workflow.quickLead", "workflow.createCompanyFromPerson"],
   "starterLayoutSkipped": [],
   "starterLayoutFailed": [],
-  "starterLayoutVersion": 3
+  "starterLayoutVersion": 4
 }
 ```
 
@@ -780,6 +781,51 @@ new one, so an edited workflow is reported in `starterLayoutSkipped`. Switched
 off ones go to `starterLayoutChanged` (`workflow.quickLead`,
 `workflow.createCompanyFromPerson`). Past runs are kept. A company can switch
 them on again or build its own as usual.
+
+## Sample action workflows
+
+Starter layout version 4 (`services/wschat-bridge-sample-action-workflows.service.ts`,
+manifests in `utils/build-sample-action-workflows.util.ts`): three workflows
+that act in WSChat through an HTTP request step, created as DRAFTS (no trigger
+is subscribed until the company activates one), named in `locale`:
+
+| Sample | Trigger | Steps |
+| --- | --- | --- |
+| Missed call → "Call back" task in WSChat | `wschatCall` created, `status` MISSED, `wschatImported` false, has a person | find the person, `POST {url}/tasks` `{contact, title, key}` |
+| Conversation closed successfully → message to the client | `wschatConversation` updated, watching `state` and `outcomeTone` only; `state` CLOSED, `outcomeTone` SUCCESS, `wschatImported` false, has a person | find the person, `POST {url}/messages` `{contact, text, channel: "last", key}` |
+| Scheduled reminder to clients | cron `0 4 1 * *`: the 1st of each month at 04:00 in the SERVER's time zone (cron-parser without `tz`; 10:00 in Bishkek when the server runs on UTC) | find people (a placeholder condition that matches nobody, named "SET UP…", with the daily channel limits mentioned), loop, `POST {url}/messages` per person |
+
+- `actions` (`{url, token}`) comes with `enforce` or creation; every HTTP step
+  gets `Authorization: Bearer <token>`. Without `actions` the samples are not
+  created and the layout stays at version 3, so the next call that brings it
+  creates them. The token is never stored elsewhere or logged by the bridge.
+- `key` (WSChat ignores a key it saw in the last day): the triggering record's
+  `id:updatedAt`, so a retried step does nothing twice and a new change of the
+  same record acts again; the reminder uses the person's `id:updatedAt`. No
+  run id is exposed to step variables. The missed-call task has no due date:
+  step variables have no date arithmetic. No task type is set (`T_<id>` is
+  per company).
+- The missed-call sample listens to `created` only: an upsert that inserts
+  carries no updated fields, and an updated trigger would fire on re-syncs.
+- WSChat's own later updates of a closed conversation (last message, its
+  reply to the sample's message) change neither `state` nor `outcomeTone`,
+  so they start nothing; the samples only make HTTP calls and never update
+  the record that started them; `wschatImported` excludes the history load.
+- Once: after version 4 they are ordinary workflows of the workspace; the
+  company edits, activates or deletes them and no call recreates or rewrites
+  them. A changed token is NOT written into them: replacing it in the steps
+  is a manual edit (rare). A run that stopped part-way skips samples already
+  there by name.
+- Who sees the token: reading workflows, their versions and runs needs the
+  `WORKFLOWS` settings flag (resolvers' `AccessPolicyGuard`; the records API
+  grants the workflow objects only with that flag,
+  `compute-role-records-permissions.util.ts`; the AI chat's workflow tools
+  likewise, `workflow-tool.provider.ts`). Members and API-role keys (records
+  API, MCP) have no settings flags, so only the company admin role and the
+  service user see it. A run's step log redacts `Authorization`
+  (`build-http-request-step-log.util.ts`); the run's `state` keeps the step
+  definition and is behind the same flag; runs are system objects with no
+  timeline.
 
 ## Workflows
 

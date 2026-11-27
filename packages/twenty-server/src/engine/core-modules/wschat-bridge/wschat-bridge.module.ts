@@ -21,6 +21,7 @@ import { WorkspaceDomainsModule } from 'src/engine/core-modules/domain/workspace
 import { CoreEntityCacheModule } from 'src/engine/core-entity-cache/core-entity-cache.module';
 import { FileModule } from 'src/engine/core-modules/file/file.module';
 import { CoreWorkflowServicesModule } from 'src/engine/core-modules/workflow/core-workflow-services.module';
+import { WorkspaceManyOrAllFlatEntityMapsCacheModule } from 'src/engine/metadata-modules/flat-entity/services/workspace-many-or-all-flat-entity-maps-cache.module';
 import { KeyValuePairModule } from 'src/engine/core-modules/key-value-pair/key-value-pair.module';
 import { OnboardingModule } from 'src/engine/core-modules/onboarding/onboarding.module';
 import { TwoFactorAuthenticationMethodEntity } from 'src/engine/core-modules/two-factor-authentication/entities/two-factor-authentication-method.entity';
@@ -53,6 +54,7 @@ import { WschatBridgeOnboardingService } from 'src/engine/core-modules/wschat-br
 import { WschatBridgeRolesService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-roles.service';
 import { WschatBridgeDictionariesService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-dictionaries.service';
 import { WschatBridgeDataModelService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-data-model.service';
+import { WschatBridgeSampleActionWorkflowsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-sample-action-workflows.service';
 import { WschatBridgeSampleWorkflowsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-sample-workflows.service';
 import { WschatBridgeSampleRecordsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-sample-records.service';
 import { WschatBridgeStarterIndexViewsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-starter-index-views.service';
@@ -116,6 +118,7 @@ import { WorkspaceMigrationModule } from 'src/engine/workspace-manager/workspace
     FileModule,
     CoreEntityCacheModule,
     CoreWorkflowServicesModule,
+    WorkspaceManyOrAllFlatEntityMapsCacheModule,
   ],
   providers: [
     WschatBridgeService,
@@ -149,6 +152,7 @@ import { WorkspaceMigrationModule } from 'src/engine/workspace-manager/workspace
     WschatBridgeWorkspaceUsageService,
     WschatBridgeSampleRecordsService,
     WschatBridgeSampleWorkflowsService,
+    WschatBridgeSampleActionWorkflowsService,
     { provide: APP_GUARD, useClass: WschatBridgeAuthorizeAppGuard },
     // Not exported by TwoFactorAuthenticationModule; both need only core repositories, so they are provided here
     TwoFactorAuthenticationBackupCodeService,

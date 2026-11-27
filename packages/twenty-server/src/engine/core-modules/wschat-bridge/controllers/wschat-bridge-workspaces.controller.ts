@@ -190,6 +190,7 @@ export class WschatBridgeWorkspacesController {
       adminRoleLabel: body.adminRoleLabel,
       locale: body.locale,
       assistantsEnabled: body.assistantsEnabled,
+      actions: body.actions,
     });
   }
 

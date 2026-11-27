@@ -129,6 +129,7 @@ export class WschatBridgeWorkspaceCreationService {
       await this.starterLayoutService.apply({
         workspaceId: workspace.id,
         locale: input.locale ?? 'en',
+        actions: input.actions,
       });
     }
 

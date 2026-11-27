@@ -16,6 +16,7 @@ import {
   type WschatBridgeLocale,
 } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-data-model.constant';
 import { WschatBridgeMemberProfileInput } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-member-profile.input';
+import { WschatBridgeActionsInput } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-actions.input';
 
 export class WschatBridgeCreateWorkspaceInput {
   @IsString()
@@ -53,4 +54,10 @@ export class WschatBridgeCreateWorkspaceInput {
   @ArrayMaxSize(100)
   @IsString({ each: true })
   allowedEmbeddingOrigins?: string[];
+
+  // WSChat's actions endpoint for the sample workflows (README, "Sample action workflows"); never stored or logged
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => WschatBridgeActionsInput)
+  actions?: WschatBridgeActionsInput;
 }
