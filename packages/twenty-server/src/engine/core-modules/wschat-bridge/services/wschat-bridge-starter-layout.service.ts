@@ -7,6 +7,7 @@ import { KeyValuePairService } from 'src/engine/core-modules/key-value-pair/key-
 import { type WschatBridgeLocale } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-data-model.constant';
 import {
   WSCHAT_BRIDGE_INDEX_VIEWS,
+  WSCHAT_BRIDGE_SAMPLE_WORKFLOWS_LAYOUT_VERSION,
   WSCHAT_BRIDGE_STANDARD_OPTION_LABELS,
   WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION,
   WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION_KEY,
@@ -14,6 +15,7 @@ import {
   type WschatBridgeStandardOptionLabels,
   type WschatBridgeStarterLayoutKeyValueTypesMap,
 } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-starter-layout.constant';
+import { WschatBridgeSampleWorkflowsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-sample-workflows.service';
 import { WschatBridgeStarterIndexViewsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-starter-index-views.service';
 import { WschatBridgeStarterViewsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-starter-views.service';
 import { planStandardOptionRelabels } from 'src/engine/core-modules/wschat-bridge/utils/plan-standard-option-relabels.util';
@@ -27,9 +29,9 @@ export type WschatBridgeStarterLayoutResult = {
   starterLayoutCreated: string[];
   // Standard option lists whose shipped English labels were translated ("task.status")
   starterLayoutRelabelled: string[];
-  // Main views renamed or given columns ("wschatCall.index", "person.index")
+  // Existing factory items changed: main views ("wschatCall.index"), sample workflows switched off ("workflow.quickLead")
   starterLayoutChanged: string[];
-  // Main views left alone because the company already changed them
+  // Factory items left alone because the company already changed them
   starterLayoutSkipped: string[];
   // Steps that failed, with a short reason; the next call tries them again
   starterLayoutFailed: string[];
@@ -59,6 +61,7 @@ export class WschatBridgeStarterLayoutService {
     private readonly fieldMetadataService: FieldMetadataService,
     private readonly starterViewsService: WschatBridgeStarterViewsService,
     private readonly starterIndexViewsService: WschatBridgeStarterIndexViewsService,
+    private readonly sampleWorkflowsService: WschatBridgeSampleWorkflowsService,
   ) {}
 
   async apply({
@@ -170,6 +173,21 @@ export class WschatBridgeStarterLayoutService {
         result.starterLayoutFailed.push(
           `${definition.reportName}: ${describeError(error)}`,
         );
+      }
+    }
+
+    if (appliedVersion < WSCHAT_BRIDGE_SAMPLE_WORKFLOWS_LAYOUT_VERSION) {
+      try {
+        const workflows =
+          await this.sampleWorkflowsService.deactivateFactoryWorkflows(
+            workspaceId,
+          );
+
+        result.starterLayoutChanged.push(...workflows.deactivated);
+        result.starterLayoutSkipped.push(...workflows.skipped);
+      } catch (error) {
+        isComplete = false;
+        result.starterLayoutFailed.push(`workflows: ${describeError(error)}`);
       }
     }
 

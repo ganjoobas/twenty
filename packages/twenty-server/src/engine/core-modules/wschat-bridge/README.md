@@ -173,6 +173,16 @@ Order of work:
    verified, onboarding cleared. They land straight in the app via a login
    link (the login-token exchange looks neither at `isPasswordAuthEnabled` nor
    at `AUTH_PASSWORD_ENABLED`).
+   Then upstream's sample records that `activateWorkspace` inserts (5
+   companies, 5 people, 6 opportunities; `prefillCreatedWorkspaceRecords`) are
+   deleted for good by their fixed upstream ids, with plain SQL in one
+   transaction (no trash, no events). A failure there is only logged. Its two
+   sample workflows ("Quick Lead", "Create company when adding a new person")
+   are kept but switched off at once, through
+   `CoreWorkflowLifecycleWorkspaceService.deactivateCoreWorkflowVersion`, the
+   service behind the Deactivate button: upstream ships them ACTIVE, and the
+   second one runs on every person WSChat writes (see "Starter layout",
+   version 3). The "My First Dashboard" dashboard is kept.
 7. Last, and outside the rollback below: the WSChat data model (see "WSChat
    data model", labels in `locale`). If it cannot be finished (above all a
    busy schema, see `SCHEMA_BUSY`), the workspace is kept and the response
@@ -213,6 +223,75 @@ Name and subdomain go through `updateWorkspaceById` (custom-domain bookkeeping
 and caches as upstream); origins through the per-origin upstream method,
 removals first. Response: the workspace as in `GET`. Changing the subdomain
 changes `url`; links issued before keep pointing at the old host.
+
+### `DELETE /wschat-bridge/workspaces/:workspaceId` → `200`
+
+Body: `{ "confirmSubdomain": "taxi555" }`, which must equal the workspace's
+current subdomain (trimmed, any case). Deletes the workspace at once and for
+good; nothing is left for upstream's inactivity cleaners.
+
+Refusals, before any write: `404 WORKSPACE_NOT_FOUND` (unknown, or already
+deleted: a repeated call answers this, so WSChat can read it as "deleted"),
+`409 CONFIRMATION_MISMATCH`, `409 SYSTEM_WORKSPACE` (the workspace named by
+`SERVER_ADMIN_WORKSPACE_ID`). A soft-deleted workspace is found and finished.
+
+Order of work:
+
+1. The size of its storage folder is measured (as `…/usage`), then the folder
+   is deleted (`FileService.deleteWorkspaceFolder`). Upstream only queues that
+   as a `FileWorkspaceFolderDeletionJob`; the queued job still runs and finds
+   nothing.
+2. Upstream's hard delete, `WorkspaceService.deleteWorkspace(id, false)` (the
+   admin panel's path), under its application-uninstall lock (`409
+   WORKSPACE_BUSY` while an uninstall runs): every membership is deleted
+   (`deleteUserWorkspace`, hard), a member left with no workspace is
+   soft-deleted; application uninstall hooks and logic-function resources;
+   all syncable metadata (objects, fields, views, roles, agents, …); the schema
+   `workspace_…` is dropped (`DROP SCHEMA … CASCADE`, IF EXISTS); the
+   workspace and flat-entity caches in Redis are flushed; a custom domain is
+   released; the emailing-domain cleanup is queued; the `core.workspace` row is
+   deleted, and its foreign keys cascade to the workspace's other core rows
+   (API keys, app tokens, assistant grants, applications, invitations, approved
+   domains, our `core.keyValuePair` rows, …).
+3. Upstream never removes users. Members whose only workspace this was are now
+   deleted from `core.user` (cascading their own rows); a user a foreign key
+   still holds stays soft-deleted and is counted. Members of other
+   workspaces stay. The service user and any server admin
+   (`canAccessFullAdminPanel` / `canImpersonate`) are never removed: if
+   upstream soft-deleted them, they are restored.
+
+Response:
+
+```json
+{ "deleted": true, "workspaceId": "...", "filesBytes": 1048576, "usersRemoved": 3, "usersKept": 1, "usersLeftSoftDeleted": 0 }
+```
+
+`filesBytes` is `null` when the storage is not local or could not be measured.
+
+Failure part-way: the folder goes first and upstream's steps can be repeated
+(the schema drop is IF EXISTS, deleted memberships are not found again), so
+while the `core.workspace` row exists a repeated call finishes the deletion.
+Once that row is gone the call answers `404`; what can be left then is only
+step 3: members soft-deleted by upstream but not yet removed. Billing is off
+here; with billing on, upstream refuses while a subscription is active.
+
+### `GET /wschat-bridge/workspaces/:workspaceId/usage` → `200`
+
+Read-only.
+
+```json
+{ "databaseBytes": 8912896, "filesBytes": 1048576, "filesComplete": true, "totalBytes": 9961472, "measuredAt": "<ISO 8601>" }
+```
+
+- `databaseBytes`: `pg_total_relation_size` (tables with their indexes and
+  TOAST) of every table and materialized view of the workspace schema. The
+  workspace's metadata rows in `core` tables are not counted (shared tables,
+  no cheap exact split).
+- `filesBytes`: regular files under `<STORAGE_LOCAL_PATH>/<workspaceId>`,
+  links not followed; `null` with S3 storage. The walk stops after 10 s:
+  `filesComplete: false` then, and `filesBytes` is what was counted so far (a
+  lower bound). A missing folder is `0`.
+- `404 WORKSPACE_NOT_FOUND` for an unknown or deleted workspace.
 
 ### `PUT /wschat-bridge/workspaces/:workspaceId/members` → `200`
 
@@ -345,10 +424,10 @@ Response:
   "dataModelReady": true,
   "starterLayoutCreated": ["task.byType", "wschatConversation.open", "wschatConversation.byOutcome", "wschatCall.missed"],
   "starterLayoutRelabelled": ["task.status", "opportunity.stage"],
-  "starterLayoutChanged": ["wschatConversation.index", "wschatCall.index", "person.index", "company.index"],
+  "starterLayoutChanged": ["wschatConversation.index", "wschatCall.index", "person.index", "company.index", "workflow.quickLead", "workflow.createCompanyFromPerson"],
   "starterLayoutSkipped": [],
   "starterLayoutFailed": [],
-  "starterLayoutVersion": 2
+  "starterLayoutVersion": 3
 }
 ```
 
@@ -387,6 +466,9 @@ enterprise-licensed files the bridge does not import.
 | 409 | `SCHEMA_BUSY` | The workspace still runs deferred schema operations (index builds) after the bridge waited up to 90 s; repeat later |
 | 500 | `WORKSPACE_CREATION_FAILED` | Creation failed and was rolled back, or clean-up failed (message names the id) |
 | 500 | `DATA_MODEL_FAILED` | `enforce`: lockdown applied, data model not finished; repeat |
+| 409 | `CONFIRMATION_MISMATCH` | `DELETE …/workspaces/:id`: `confirmSubdomain` is not the workspace's subdomain |
+| 409 | `SYSTEM_WORKSPACE` | `DELETE …/workspaces/:id` of the `SERVER_ADMIN_WORKSPACE_ID` workspace |
+| 409 | `WORKSPACE_BUSY` | `DELETE …/workspaces/:id` while an application uninstall runs; repeat later |
 | 500 | `INTERNAL_ERROR` | Anything else; details only in the server log |
 
 Each mutating call logs one line: workspace id, action, masked e-mail.
@@ -682,6 +764,22 @@ one workspace migration. Columns are only added, moved or hidden, never deleted.
   `starterLayoutSkipped` and never changed.
 - Report: `starterLayoutChanged` (main views written), `starterLayoutSkipped`.
   A workspace already at version 1 gets only these.
+
+**Sample workflows** (version 3, `services/wschat-bridge-sample-workflows.service.ts`):
+upstream's `prefillWorkflows` creates "Quick Lead" (manual) and "Create company
+when adding a new person" (on `person.upserted` of `emails`, people from e-mail
+and calendar sync excluded), both ACTIVE. The second one fired on every person
+WSChat wrote and failed at its first CODE step, as code execution is disabled
+here. Both are switched off with the Deactivate button's service, which also
+drops them from the automated trigger map (built from ACTIVE versions only,
+`workspace-workflow-automated-trigger-map-cache.service.ts`), so records
+written afterwards start no run. Only a workflow still in its shipped state
+is touched: exactly one version, upstream's id (derived from the workspace id,
+`getWorkflowPrefillIds`), and ACTIVE; editing an active version always makes a
+new one, so an edited workflow is reported in `starterLayoutSkipped`. Switched
+off ones go to `starterLayoutChanged` (`workflow.quickLead`,
+`workflow.createCompanyFromPerson`). Past runs are kept. A company can switch
+them on again or build its own as usual.
 
 ## Workflows
 

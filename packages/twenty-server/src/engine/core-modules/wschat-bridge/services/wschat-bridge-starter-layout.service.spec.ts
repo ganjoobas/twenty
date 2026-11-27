@@ -60,12 +60,20 @@ describe('WschatBridgeStarterLayoutService', () => {
     ),
   };
 
+  const sampleWorkflowsService = {
+    deactivateFactoryWorkflows: jest.fn(async () => ({
+      deactivated: ['workflow.createCompanyFromPerson'],
+      skipped: ['workflow.quickLead'],
+    })),
+  };
+
   const service = new WschatBridgeStarterLayoutService(
     keyValuePairService as never,
     workspaceCacheService as never,
     fieldMetadataService as never,
     starterViewsService as never,
     starterIndexViewsService as never,
+    sampleWorkflowsService as never,
   );
 
   beforeEach(() => {
@@ -90,6 +98,7 @@ describe('WschatBridgeStarterLayoutService', () => {
 
     starterViewsService.createIfMissing.mockClear();
     starterIndexViewsService.apply.mockClear();
+    sampleWorkflowsService.deactivateFactoryWorkflows.mockClear();
 
     // A company that deleted our views does not get them back
     const second = await service.apply({
@@ -99,6 +108,9 @@ describe('WschatBridgeStarterLayoutService', () => {
 
     expect(starterViewsService.createIfMissing).not.toHaveBeenCalled();
     expect(starterIndexViewsService.apply).not.toHaveBeenCalled();
+    expect(
+      sampleWorkflowsService.deactivateFactoryWorkflows,
+    ).not.toHaveBeenCalled();
     expect(second.starterLayoutCreated).toEqual([]);
   });
 
@@ -112,7 +124,26 @@ describe('WschatBridgeStarterLayoutService', () => {
 
     expect(starterViewsService.createIfMissing).not.toHaveBeenCalled();
     expect(starterIndexViewsService.apply).toHaveBeenCalledTimes(4);
-    expect(result.starterLayoutVersion).toBe(2);
+    expect(
+      sampleWorkflowsService.deactivateFactoryWorkflows,
+    ).toHaveBeenCalledTimes(1);
+    expect(result.starterLayoutVersion).toBe(3);
+  });
+
+  it('should give a workspace at version 2 only the workflow switch-off, and keep 2 if it fails', async () => {
+    storedVersion = 2;
+    sampleWorkflowsService.deactivateFactoryWorkflows.mockRejectedValueOnce(
+      new Error('locked'),
+    );
+
+    const result = await service.apply({
+      workspaceId: WORKSPACE_ID,
+      locale: 'ru',
+    });
+
+    expect(starterIndexViewsService.apply).not.toHaveBeenCalled();
+    expect(result.starterLayoutFailed).toEqual(['workflows: locked']);
+    expect(storedVersion).toBe(2);
   });
 
   it('should keep version 1 when a main view fails', async () => {

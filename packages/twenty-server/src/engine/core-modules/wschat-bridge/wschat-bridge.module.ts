@@ -18,6 +18,9 @@ import { AuthModule } from 'src/engine/core-modules/auth/auth.module';
 import { TokenModule } from 'src/engine/core-modules/auth/token/token.module';
 import { SubdomainManagerModule } from 'src/engine/core-modules/domain/subdomain-manager/subdomain-manager.module';
 import { WorkspaceDomainsModule } from 'src/engine/core-modules/domain/workspace-domains/workspace-domains.module';
+import { CoreEntityCacheModule } from 'src/engine/core-entity-cache/core-entity-cache.module';
+import { FileModule } from 'src/engine/core-modules/file/file.module';
+import { CoreWorkflowServicesModule } from 'src/engine/core-modules/workflow/core-workflow-services.module';
 import { KeyValuePairModule } from 'src/engine/core-modules/key-value-pair/key-value-pair.module';
 import { OnboardingModule } from 'src/engine/core-modules/onboarding/onboarding.module';
 import { TwoFactorAuthenticationMethodEntity } from 'src/engine/core-modules/two-factor-authentication/entities/two-factor-authentication-method.entity';
@@ -50,6 +53,8 @@ import { WschatBridgeOnboardingService } from 'src/engine/core-modules/wschat-br
 import { WschatBridgeRolesService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-roles.service';
 import { WschatBridgeDictionariesService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-dictionaries.service';
 import { WschatBridgeDataModelService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-data-model.service';
+import { WschatBridgeSampleWorkflowsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-sample-workflows.service';
+import { WschatBridgeSampleRecordsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-sample-records.service';
 import { WschatBridgeStarterIndexViewsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-starter-index-views.service';
 import { WschatBridgeStarterLayoutService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-starter-layout.service';
 import { WschatBridgeStarterViewsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-starter-views.service';
@@ -60,6 +65,8 @@ import { WschatBridgeWorkspaceCreationService } from 'src/engine/core-modules/ws
 import { WschatBridgeWorkspaceEnforcementService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-enforcement.service';
 import { WschatBridgeWorkspaceLookupService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-lookup.service';
 import { WschatBridgeWorkspaceSettingsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-settings.service';
+import { WschatBridgeWorkspaceDeletionService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-deletion.service';
+import { WschatBridgeWorkspaceUsageService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-usage.service';
 import { WschatBridgeWorkspaceUpdateService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-update.service';
 import { WschatBridgeService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge.service';
 import { RolePermissionFlagModule } from 'src/engine/metadata-modules/role-permission-flag/role-permission-flag.module';
@@ -106,6 +113,9 @@ import { WorkspaceMigrationModule } from 'src/engine/workspace-manager/workspace
     KeyValuePairModule,
     ApplicationAuthorizationModule,
     WorkspaceMigrationModule,
+    FileModule,
+    CoreEntityCacheModule,
+    CoreWorkflowServicesModule,
   ],
   providers: [
     WschatBridgeService,
@@ -135,6 +145,10 @@ import { WorkspaceMigrationModule } from 'src/engine/workspace-manager/workspace
     WschatBridgeStarterLayoutService,
     WschatBridgeStarterViewsService,
     WschatBridgeStarterIndexViewsService,
+    WschatBridgeWorkspaceDeletionService,
+    WschatBridgeWorkspaceUsageService,
+    WschatBridgeSampleRecordsService,
+    WschatBridgeSampleWorkflowsService,
     { provide: APP_GUARD, useClass: WschatBridgeAuthorizeAppGuard },
     // Not exported by TwoFactorAuthenticationModule; both need only core repositories, so they are provided here
     TwoFactorAuthenticationBackupCodeService,

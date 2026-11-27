@@ -17,6 +17,7 @@ import {
 
 import { WschatBridgeCreateWorkspaceInput } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-create-workspace.input';
 import { type WschatBridgeEnforceReportDTO } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-enforce-report.dto';
+import { WschatBridgeDeleteWorkspaceInput } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-delete-workspace.input';
 import { WschatBridgeDictionariesInput } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-dictionaries.input';
 import { WschatBridgeEnforceInput } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-enforce.input';
 import {
@@ -47,6 +48,14 @@ import { WschatBridgeMemberUpsertService } from 'src/engine/core-modules/wschat-
 import { WschatBridgeWorkspaceEnforcementService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-enforcement.service';
 import { WschatBridgeWorkspaceCreationService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-creation.service';
 import { WschatBridgeWorkspaceLookupService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-lookup.service';
+import {
+  type WschatBridgeDeletedWorkspaceDTO,
+  WschatBridgeWorkspaceDeletionService,
+} from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-deletion.service';
+import {
+  type WschatBridgeWorkspaceUsageDTO,
+  WschatBridgeWorkspaceUsageService,
+} from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-usage.service';
 import { WschatBridgeWorkspaceUpdateService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-update.service';
 import { NoPermissionGuard } from 'src/engine/guards/no-permission.guard';
 import { PublicEndpointGuard } from 'src/engine/guards/public-endpoint.guard';
@@ -74,6 +83,8 @@ export class WschatBridgeWorkspacesController {
     private readonly apiKeysService: WschatBridgeApiKeysService,
     private readonly dictionariesService: WschatBridgeDictionariesService,
     private readonly assistantsService: WschatBridgeAssistantsService,
+    private readonly workspaceDeletionService: WschatBridgeWorkspaceDeletionService,
+    private readonly workspaceUsageService: WschatBridgeWorkspaceUsageService,
   ) {}
 
   @Post()
@@ -100,6 +111,26 @@ export class WschatBridgeWorkspacesController {
     await this.workspaceUpdateService.updateWorkspace(workspaceId, body);
 
     return this.describeWorkspace(workspaceId);
+  }
+
+  // Immediate and complete; a second call answers 404 WORKSPACE_NOT_FOUND
+  @Delete(':workspaceId')
+  @HttpCode(200)
+  async deleteWorkspace(
+    @Param('workspaceId', new ParseUUIDPipe()) workspaceId: string,
+    @Body() body: WschatBridgeDeleteWorkspaceInput,
+  ): Promise<WschatBridgeDeletedWorkspaceDTO> {
+    return this.workspaceDeletionService.deleteWorkspace(
+      workspaceId,
+      body.confirmSubdomain,
+    );
+  }
+
+  @Get(':workspaceId/usage')
+  async getUsage(
+    @Param('workspaceId', new ParseUUIDPipe()) workspaceId: string,
+  ): Promise<WschatBridgeWorkspaceUsageDTO> {
+    return this.workspaceUsageService.measure(workspaceId);
   }
 
   @Put(':workspaceId/members')

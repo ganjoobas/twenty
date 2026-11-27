@@ -16,7 +16,10 @@ export const WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION_KEY =
   'WSCHAT_STARTER_LAYOUT_VERSION';
 
 // Raise it with new views tagged with the new number; a workspace only gets views newer than what it has
-export const WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION = 2;
+export const WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION = 3;
+
+// Version that switches off upstream's sample workflows (WschatBridgeSampleWorkflowsService)
+export const WSCHAT_BRIDGE_SAMPLE_WORKFLOWS_LAYOUT_VERSION = 3;
 
 export type WschatBridgeStarterLayoutKeyValueTypesMap = {
   [WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION_KEY]: number;

@@ -21,6 +21,8 @@ import { WschatBridgeMemberUpsertService } from 'src/engine/core-modules/wschat-
 import { WschatBridgeOnboardingService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-onboarding.service';
 import { WschatBridgeSubdomainService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-subdomain.service';
 import { type WschatBridgeLocale } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-data-model.constant';
+import { WschatBridgeSampleWorkflowsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-sample-workflows.service';
+import { WschatBridgeSampleRecordsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-sample-records.service';
 import { WschatBridgeStarterLayoutService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-starter-layout.service';
 import { WschatBridgeDataModelService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-data-model.service';
 import { WschatBridgeServiceUserService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-service-user.service';
@@ -66,6 +68,8 @@ export class WschatBridgeWorkspaceCreationService {
     private readonly onboardingService: WschatBridgeOnboardingService,
     private readonly dataModelService: WschatBridgeDataModelService,
     private readonly starterLayoutService: WschatBridgeStarterLayoutService,
+    private readonly sampleRecordsService: WschatBridgeSampleRecordsService,
+    private readonly sampleWorkflowsService: WschatBridgeSampleWorkflowsService,
     private readonly workspaceLookupService: WschatBridgeWorkspaceLookupService,
   ) {}
 
@@ -112,6 +116,9 @@ export class WschatBridgeWorkspaceCreationService {
       pendingWorkspace.id,
     );
 
+    await this.tryRemoveSampleRecords(workspace.id);
+    await this.tryDeactivateSampleWorkflows(workspace.id);
+
     const dataModelReady = await this.tryEnsureDataModel(
       workspace.id,
       input.locale ?? 'en',
@@ -135,6 +142,42 @@ export class WschatBridgeWorkspaceCreationService {
       url: this.workspaceLookupService.buildUrl(workspace),
       dataModelReady,
     };
+  }
+
+  // Not fatal: a usable workspace with upstream's samples beats no workspace; they can be removed by hand
+  private async tryRemoveSampleRecords(workspaceId: string): Promise<void> {
+    try {
+      const removed =
+        await this.sampleRecordsService.removeSampleRecords(workspaceId);
+
+      this.logger.log(
+        `Workspace ${workspaceId}: sample records removed ${JSON.stringify(removed)}`,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Workspace ${workspaceId}: sample records not removed: ${describeError(error)}`,
+      );
+    }
+  }
+
+  // Not fatal either: enforce switches them off later (starter layout version 3)
+  private async tryDeactivateSampleWorkflows(
+    workspaceId: string,
+  ): Promise<void> {
+    try {
+      const { deactivated } =
+        await this.sampleWorkflowsService.deactivateFactoryWorkflows(
+          workspaceId,
+        );
+
+      this.logger.log(
+        `Workspace ${workspaceId}: sample workflows switched off: ${deactivated.join(', ') || 'none'}`,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Workspace ${workspaceId}: sample workflows not switched off: ${describeError(error)}`,
+      );
+    }
   }
 
   // Outside the rollback on purpose: the workspace, its lockdown and its admin are complete and usable, so a data
