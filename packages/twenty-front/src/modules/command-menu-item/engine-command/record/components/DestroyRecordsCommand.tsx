@@ -102,7 +102,8 @@ export const DestroyRecordsCommand = () => {
   const subtitle = isSingleRecord
     ? t`Are you sure you want to destroy this ${objectMetadataItem.labelSingular}? It cannot be recovered anymore.`
     : t`Are you sure you want to destroy these ${objectMetadataItem.labelPlural}? They won't be recoverable anymore.`;
-  const confirmButtonText = `${t`Permanently Destroy`} ${objectLabel}`;
+  // WSChat fork: one translatable phrase, not two glued pieces (WSCHAT.md)
+  const confirmButtonText = title;
 
   return (
     <HeadlessConfirmationModalEngineCommandEffect

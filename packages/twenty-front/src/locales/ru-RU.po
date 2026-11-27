@@ -389,7 +389,7 @@ msgstr "{0} с недоставкой или жалобой в спам-филь
 #. placeholder {0}: objectMetadataItem.labelSingular
 #: src/modules/side-panel/pages/record-creation-form/components/SidePanelRecordCreationFormPage.tsx
 msgid "{0} created"
-msgstr "{0} создано"
+msgstr "Запись создана"
 
 #. js-lingui-id: dNIJYp
 #. placeholder {0}: formatNumber(nextCreditsByPeriod, { decimals: 2, })
@@ -407,7 +407,7 @@ msgstr "{0} дней"
 #. placeholder {0}: objectMetadataItem.labelSingular
 #: src/modules/page-layout/hooks/useCreatePendingFieldsWidgetViews.ts
 msgid "{0} Fields"
-msgstr "{0} Полей"
+msgstr "Поля: {0}"
 
 #. js-lingui-id: l8kqMU
 #. placeholder {0}: loadBalanceObjectMetadataItem.labelPlural
@@ -511,7 +511,7 @@ msgstr "Показано {0}"
 #. placeholder {0}: objectMetadataItem.labelPlural
 #: src/modules/page-layout/widgets/record-table/utils/buildRecordTableWidgetViewSnapshot.ts
 msgid "{0} Table"
-msgstr "{0} таблица"
+msgstr "Таблица: {0}"
 
 #. js-lingui-id: 1+rLw7
 #. placeholder {0}: formatNumber(model.contextWindowTokens, { abbreviate: true, decimals: 1, })
@@ -2111,7 +2111,7 @@ msgstr "Добавить {placeholder}"
 #: src/modules/object-record/record-index/components/RecordIndexEmptyState.tsx
 #: src/modules/object-record/record-index/components/RecordIndexEmptyState.tsx
 msgid "Add a {objectLabelSingular}"
-msgstr "Добавить {objectLabelSingular}"
+msgstr "Добавить запись"
 
 #. js-lingui-id: rUVyfz
 #: src/modules/settings/billing/components/UpdatePaymentMethodModal.tsx
@@ -2785,7 +2785,7 @@ msgstr "Ниже добавьте вашу кредитную карту. Пос
 #. js-lingui-id: m2qDV8
 #: src/modules/object-record/record-table/empty-state/utils/getEmptyStateTitle.ts
 msgid "Add your first {objectLabel}"
-msgstr "Добавьте ваш первый {objectLabel}"
+msgstr "Добавьте первую запись"
 
 #. js-lingui-id: dakTu+
 #: src/pages/object-core/AgentCoreIndexPage.tsx
@@ -4358,13 +4358,13 @@ msgstr "Вы уверены, что хотите удалить этот инс�
 #. placeholder {0}: objectMetadataItem.labelPlural
 #: src/modules/command-menu-item/engine-command/record/components/DestroyRecordsCommand.tsx
 msgid "Are you sure you want to destroy these {0}? They won't be recoverable anymore."
-msgstr "Вы уверены, что хотите уничтожить эти {0}? Восстановить их больше нельзя."
+msgstr "Вы уверены, что хотите уничтожить эти записи? Восстановить их будет нельзя."
 
 #. js-lingui-id: GfgNgF
 #. placeholder {0}: objectMetadataItem.labelSingular
 #: src/modules/command-menu-item/engine-command/record/components/DestroyRecordsCommand.tsx
 msgid "Are you sure you want to destroy this {0}? It cannot be recovered anymore."
-msgstr "Вы уверены, что хотите уничтожить {0}? Восстановление будет невозможно."
+msgstr "Вы уверены, что хотите уничтожить эту запись? Восстановить её будет нельзя."
 
 #. js-lingui-id: +UIjOX
 #: src/modules/settings/config-variables/components/ConfigVariableEdit.tsx
@@ -4375,13 +4375,13 @@ msgstr "Вы уверены, что хотите сбросить эту пер�
 #. placeholder {0}: objectMetadataItem.labelPlural
 #: src/modules/command-menu-item/engine-command/record/components/RestoreRecordsCommand.tsx
 msgid "Are you sure you want to restore these {0}?"
-msgstr "Вы уверены, что хотите восстановить эти {0}?"
+msgstr "Вы уверены, что хотите восстановить эти записи?"
 
 #. js-lingui-id: XTKWxO
 #. placeholder {0}: objectMetadataItem.labelSingular
 #: src/modules/command-menu-item/engine-command/record/components/RestoreRecordsCommand.tsx
 msgid "Are you sure you want to restore this {0}?"
-msgstr "Вы уверены, что хотите восстановить этот {0}?"
+msgstr "Вы уверены, что хотите восстановить эту запись?"
 
 #. js-lingui-id: 9JFf0y
 #: src/modules/settings/members/components/MemberPermissionsTab.tsx
@@ -4429,7 +4429,7 @@ msgstr "Соглашения"
 #: src/modules/settings/data-model/constants/SettingsNonCompositeFieldTypeConfigs.ts
 msgctxt "Field type"
 msgid "Array"
-msgstr "Array"
+msgstr "Массив"
 
 #. js-lingui-id: zelGhH
 #: src/modules/workflow/workflow-variables/utils/generate/computeStepOutputSchema.ts
@@ -8402,7 +8402,7 @@ msgstr "Подсчитать пустые"
 #. js-lingui-id: sLDQbp
 #: src/modules/object-record/record-board/record-board-column/utils/getAggregateOperationLabel.ts
 msgid "Count false"
-msgstr "Подсчитать ложные"
+msgstr "Подсчитать «Нет»"
 
 #. js-lingui-id: DzRsDJ
 #: src/modules/object-record/record-board/record-board-column/utils/getAggregateOperationLabel.ts
@@ -8422,7 +8422,7 @@ msgstr "Подсчитывайте открытия с помощью невид
 #. js-lingui-id: ft6dHY
 #: src/modules/object-record/record-board/record-board-column/utils/getAggregateOperationLabel.ts
 msgid "Count true"
-msgstr "Подсчитать \"true\""
+msgstr "Подсчитать «Да»"
 
 #. js-lingui-id: 9FZBbf
 #: src/modules/object-record/record-board/record-board-column/utils/getAggregateOperationLabel.ts
@@ -8469,12 +8469,12 @@ msgstr "Создать"
 #: src/modules/side-panel/hooks/useOpenRecordCreationFormSettingsInSidePanel.ts
 #: src/modules/side-panel/pages/record-creation-form/components/SidePanelRecordCreationFormPage.tsx
 msgid "Create {0}"
-msgstr "Создать {0}"
+msgstr "Создать: {0}"
 
 #. js-lingui-id: MKhSSw
 #: src/modules/command-menu-item/hooks/useGlobalRecordCreationCommandMenuItems.ts
 msgid "Create {objectLabelSingular}"
-msgstr "Создать {objectLabelSingular}"
+msgstr "Создать: {objectLabelSingular}"
 
 #. js-lingui-id: RRkWki
 #: src/modules/ai-chat/tool-calls/components/AiChatRecordApprovalDeck.tsx
@@ -8753,7 +8753,7 @@ msgstr "Создать {beautifiedCreatedAt}"
 #: src/modules/ai/constants/CrudToolStatusLabels.ts
 #: src/modules/ai/constants/CrudToolStatusLabels.ts
 msgid "Created {objectLabel}"
-msgstr "Создано {objectLabel}"
+msgstr "Создано: {objectLabel}"
 
 #. js-lingui-id: NCIYDF
 #: src/modules/sign-in-background-mock/constants/BackgroundMockColumns.ts
@@ -8780,7 +8780,7 @@ msgstr "Создано представление <0>Продления в эт�
 #: src/modules/ai/constants/CrudToolStatusLabels.ts
 #: src/modules/ai/constants/CrudToolStatusLabels.ts
 msgid "Creating {objectLabel}"
-msgstr "Создание {objectLabel}"
+msgstr "Создание: {objectLabel}"
 
 #. js-lingui-id: 00OfBp
 #: src/modules/auth/sign-in-up/constants/WorkspaceActivationMessages.tsx
@@ -9959,7 +9959,7 @@ msgstr "Удалить {numberOfCoreWorkflows} рабочих процессов
 #. js-lingui-id: 2nRIIp
 #: src/modules/workflow/workflow-steps/workflow-actions/ai-agent-action/constants/WorkflowAiAgentCrudPermissions.ts
 msgid "Delete {objectLabel}"
-msgstr "Удалить {objectLabel}"
+msgstr "Удалить: {objectLabel}"
 
 #. js-lingui-id: j/OgnL
 #: src/modules/settings/data-model/object-details/components/tabs/ObjectSettings.tsx
@@ -9974,7 +9974,7 @@ msgstr "Удалить {recordCount} {objectLabel}"
 #. js-lingui-id: j8kv91
 #: src/modules/object-record/record-field-list/record-detail-section/relation/components/RecordDetailRelationRecordsListItem.tsx
 msgid "Delete {relationObjectLabelSingular}"
-msgstr "Удалить {relationObjectLabelSingular}"
+msgstr "Удалить запись"
 
 #. js-lingui-id: ++479H
 #: src/modules/ai-chat/tool-calls/components/AiChatRecordApprovalDeck.tsx
@@ -10163,7 +10163,7 @@ msgstr "Удаление записи"
 #. js-lingui-id: Ptdfm4
 #: src/modules/object-record/record-field-list/record-detail-section/relation/components/RecordDetailRelationRecordsListItem.tsx
 msgid "Delete Related {relationObjectLabelSingular}"
-msgstr "Удалить связанный {relationObjectLabelSingular}"
+msgstr "Удалить связанную запись"
 
 #. js-lingui-id: CW/kVJ
 #: src/modules/related-record-paths/components/SettingsObjectRelatedRecordPathTableRow.tsx
@@ -10320,7 +10320,7 @@ msgstr "Удалено"
 #: src/modules/ai/constants/CrudToolStatusLabels.ts
 #: src/modules/ai/constants/CrudToolStatusLabels.ts
 msgid "Deleted {objectLabel}"
-msgstr "Удалено {objectLabel}"
+msgstr "Удалено: {objectLabel}"
 
 #. js-lingui-id: 6T/COx
 #: src/modules/settings/app-preferences/utils/getAccountGroupActionFailureMessage.ts
@@ -10346,7 +10346,7 @@ msgstr "Удаленная роль"
 #: src/modules/ai/constants/CrudToolStatusLabels.ts
 #: src/modules/ai/constants/CrudToolStatusLabels.ts
 msgid "Deleting {objectLabel}"
-msgstr "Удаление {objectLabel}"
+msgstr "Удаление: {objectLabel}"
 
 #. js-lingui-id: wIAG+H
 #: src/modules/settings/two-factor-authentication/components/DeleteTwoFactorAuthenticationMethod.tsx
@@ -10457,7 +10457,7 @@ msgstr "Уничтожить"
 #. js-lingui-id: vI0W/N
 #: src/modules/workflow/workflow-steps/workflow-actions/ai-agent-action/constants/WorkflowAiAgentCrudPermissions.ts
 msgid "Destroy {objectLabel}"
-msgstr "Уничтожить {objectLabel}"
+msgstr "Уничтожить: {objectLabel}"
 
 #. js-lingui-id: ud791S
 #: src/modules/object-core/agents/constants/CoreAgentRecordAccessLevels.ts
@@ -11231,7 +11231,7 @@ msgstr "Редактировать {label}, {description}"
 #. js-lingui-id: fGxkii
 #: src/modules/workflow/workflow-steps/workflow-actions/ai-agent-action/constants/WorkflowAiAgentCrudPermissions.ts
 msgid "Edit {objectLabel}"
-msgstr "Редактировать {objectLabel}"
+msgstr "Редактировать: {objectLabel}"
 
 #. js-lingui-id: GsbKaa
 #: src/modules/object-core/agents/components/CoreAgentDataAccessSection.tsx
@@ -12279,7 +12279,7 @@ msgstr "Введите значение"
 #. js-lingui-id: hY7Lb3
 #: src/modules/object-record/advanced-filter/utils/getAdvancedFilterInputPlacedholderText.ts
 msgid "Enter value for {fieldLabel}"
-msgstr "Введите значение для {fieldLabel}"
+msgstr "Введите значение"
 
 #. js-lingui-id: UX/3E/
 #: src/modules/object-record/record-field/ui/form-types/components/FormMultiTextFieldInput.tsx
@@ -14205,7 +14205,7 @@ msgstr "Фильтры"
 #. js-lingui-id: YTaTdm
 #: src/modules/ai/constants/CrudToolStatusLabels.ts
 msgid "Finding {objectLabel}"
-msgstr "Поиск {objectLabel}"
+msgstr "Поиск: {objectLabel}"
 
 #. js-lingui-id: DWUicC
 #: src/modules/ai/constants/ActionToolStatusLabels.ts
@@ -14493,7 +14493,7 @@ msgstr "Адрес для пересылки скопирован в буфер 
 #. js-lingui-id: /KxDzG
 #: src/modules/ai/constants/CrudToolStatusLabels.ts
 msgid "Found {objectLabel}"
-msgstr "Найдено {objectLabel}"
+msgstr "Найдено: {objectLabel}"
 
 #. js-lingui-id: laQ+m7
 #: src/modules/getting-started/components/step-preview/GettingStartedFollowUpPreview.tsx
@@ -15172,7 +15172,7 @@ msgstr "Вкладки групп"
 #. js-lingui-id: Qt5Mu7
 #: src/modules/ai/constants/CrudToolStatusLabels.ts
 msgid "Grouped {objectLabel}"
-msgstr "Сгруппированные {objectLabel}"
+msgstr "Сгруппировано: {objectLabel}"
 
 #. js-lingui-id: owoCzo
 #: src/modules/settings/application-monitoring/components/ApplicationMonitoring.tsx
@@ -15182,7 +15182,7 @@ msgstr "Сгруппировано по коду ошибки и функции"
 #. js-lingui-id: 5FTAZt
 #: src/modules/ai/constants/CrudToolStatusLabels.ts
 msgid "Grouping {objectLabel}"
-msgstr "Группировка {objectLabel}"
+msgstr "Группировка: {objectLabel}"
 
 #. js-lingui-id: zhrjek
 #: src/modules/object-record/record-group/components/RecordGroupTabs.tsx
@@ -16866,7 +16866,7 @@ msgstr "Не пусто"
 #. js-lingui-id: HQFVAU
 #: src/modules/object-record/object-filter-dropdown/utils/getOperandLabel.ts
 msgid "Is not null"
-msgstr "Не содержит null"
+msgstr "Задано"
 
 #. js-lingui-id: jPtV7x
 #: src/modules/object-record/object-filter-dropdown/utils/getOperandLabel.ts
@@ -17949,7 +17949,7 @@ msgstr "URL ссылки"
 #. js-lingui-id: fKQhnY
 #: src/modules/activities/timeline-activities/rows/generic/components/EventRowGenericLinked.tsx
 msgid "linked a {objectLabel}"
-msgstr "связал(а) {objectLabel}"
+msgstr "связал(а) запись: {objectLabel}"
 
 #. js-lingui-id: tjNkJN
 #: src/modules/inbox/components/InboxThreadDetailsDropdown.tsx
@@ -19009,12 +19009,12 @@ msgstr "Объединить с"
 #. js-lingui-id: 1uAvIV
 #: src/modules/ai/constants/CrudToolStatusLabels.ts
 msgid "Merged {objectLabel}"
-msgstr "Объединено {objectLabel}"
+msgstr "Объединено: {objectLabel}"
 
 #. js-lingui-id: v4CzQ/
 #: src/modules/ai/constants/CrudToolStatusLabels.ts
 msgid "Merging {objectLabel}"
-msgstr "Объединение {objectLabel}"
+msgstr "Объединение: {objectLabel}"
 
 #. js-lingui-id: LuriZ0
 #: src/modules/object-record/record-merge/components/MergeRecordsFooter.tsx
@@ -19906,7 +19906,7 @@ msgstr "Новый"
 #. placeholder {0}: objectMetadataItem.labelSingular
 #: src/modules/side-panel/hooks/useOpenRecordInSidePanel.ts
 msgid "New {0}"
-msgstr "Новый {0}"
+msgstr "Новая запись: {0}"
 
 #. js-lingui-id: Kcr9Fr
 #: src/modules/settings/accounts/components/SettingsNewAccountSection.tsx
@@ -20309,23 +20309,23 @@ msgstr "Нет"
 #. js-lingui-id: 7YGRoE
 #: src/modules/ui/input/components/SelectInput.tsx
 msgid "No {clearLabel}"
-msgstr "Нет {clearLabel}"
+msgstr "Не выбрано"
 
 #. js-lingui-id: xUXmJM
 #: src/modules/object-record/record-field/ui/meta-types/input/components/MorphRelationManyToOneFieldInput.tsx
 #: src/modules/object-record/record-field/ui/meta-types/input/components/RelationManyToOneFieldInput.tsx
 msgid "No {fieldLabel}"
-msgstr "Нет {fieldLabel}"
+msgstr "Не выбрано"
 
 #. js-lingui-id: fk2viA
 #: src/modules/object-record/record-field/ui/form-types/components/FormSelectFieldInput.tsx
 msgid "No {label}"
-msgstr "Нет {label}"
+msgstr "Не выбрано"
 
 #. js-lingui-id: 9CpMvJ
 #: src/modules/object-record/record-index/components/RecordIndexEmptyState.tsx
 msgid "No {objectLabelSingular} found"
-msgstr "Не найдено ни одного {objectLabelSingular}"
+msgstr "Ничего не найдено"
 
 #. js-lingui-id: oPoLg+
 #: src/modules/settings/admin-panel/components/SettingsAdminServerAdminAccess.tsx
@@ -20643,7 +20643,7 @@ msgstr "Конфигурация по умолчанию для этого ви�
 #. js-lingui-id: P4KXUa
 #: src/modules/object-record/record-index/components/RecordIndexEmptyState.tsx
 msgid "No Deleted {objectLabelSingular} found"
-msgstr "Удаленных {objectLabelSingular} не найдено"
+msgstr "Удалённых записей нет"
 
 #. js-lingui-id: s7QKq9
 #: src/modules/object-record/record-index/components/RecordIndexEmptyState.tsx
@@ -20695,7 +20695,7 @@ msgstr "События не найдены"
 #. js-lingui-id: wY82y3
 #: src/modules/activities/calendar/components/CalendarEventsEmptyState.tsx
 msgid "No events have been scheduled with this {objectName} yet."
-msgstr "Пока не запланировано ни одного события для {objectName}."
+msgstr "Запланированных событий пока нет."
 
 #. js-lingui-id: dAMlIe
 #: src/modules/object-core/workflows/components/CoreWorkflowRecentFailedRuns.tsx
@@ -23165,7 +23165,7 @@ msgstr "Навсегда уничтожить"
 #. js-lingui-id: 64gHBj
 #: src/modules/command-menu-item/engine-command/record/components/DestroyRecordsCommand.tsx
 msgid "Permanently Destroy {objectLabel}"
-msgstr "Навсегда уничтожить {objectLabel}"
+msgstr "Удалить навсегда: {objectLabel}"
 
 #. js-lingui-id: yWmZKk
 #: src/modules/metadata-error-handler/hooks/useMetadataErrorHandler.ts
@@ -23816,7 +23816,7 @@ msgstr "Вероятности"
 #. js-lingui-id: a6ypM6
 #: src/modules/workflow/workflow-variables/utils/generate/generateClassifyOutputSchema.ts
 msgid "Probability of true"
-msgstr "Вероятность true"
+msgstr "Вероятность «Да»"
 
 #. js-lingui-id: vrnnn9
 #: src/modules/activities/calendar/components/CalendarEventCallRecorderAvatar.tsx
@@ -25503,7 +25503,7 @@ msgstr "Восстановить"
 #. js-lingui-id: 8KyDbM
 #: src/modules/command-menu-item/engine-command/record/components/RestoreRecordsCommand.tsx
 msgid "Restore {objectLabel}"
-msgstr "Восстановить {objectLabel}"
+msgstr "Восстановить: {objectLabel}"
 
 #. js-lingui-id: ZkHcxG
 #: src/pages/settings/applications/tabs/SettingsApplicationTimelineActivityTypeSettingsTab.tsx
@@ -25878,7 +25878,7 @@ msgstr "Запустите тест, чтобы узнать, что возвр�
 #. js-lingui-id: UX0N2y
 #: src/modules/object-record/record-table/empty-state/utils/getEmptyStateSubTitle.ts
 msgid "Run a workflow and return here to view its executions"
-msgstr "Запустите workflow и вернитесь сюда для просмотра исполнений"
+msgstr "Запустите рабочий процесс и вернитесь сюда, чтобы увидеть его запуски"
 
 #. js-lingui-id: OI5vF+
 #: src/modules/marketplace/constants/PermissionFlagSummaryConfigs.ts
@@ -26604,7 +26604,7 @@ msgstr "Поиск..."
 #. js-lingui-id: V/CFeK
 #: src/modules/ai/constants/CrudToolStatusLabels.ts
 msgid "Searched {objectLabel}"
-msgstr "Выполнен поиск {objectLabel}"
+msgstr "Выполнен поиск: {objectLabel}"
 
 #. js-lingui-id: w3oYcQ
 #: src/modules/ai/constants/ActionToolStatusLabels.ts
@@ -26636,7 +26636,7 @@ msgstr "Поиски"
 #. js-lingui-id: EvDUJy
 #: src/modules/ai/constants/CrudToolStatusLabels.ts
 msgid "Searching {objectLabel}"
-msgstr "Выполняется поиск {objectLabel}"
+msgstr "Выполняется поиск: {objectLabel}"
 
 #. js-lingui-id: o3sws7
 #: src/modules/side-panel/pages/search-ai-chats/components/SidePanelAiChatPickerRecentChats.tsx
@@ -26779,7 +26779,7 @@ msgstr "См."
 #. js-lingui-id: rJnbMG
 #: src/modules/workflow/workflow-steps/workflow-actions/ai-agent-action/constants/WorkflowAiAgentCrudPermissions.ts
 msgid "See {objectLabel}"
-msgstr "Посмотреть {objectLabel}"
+msgstr "Посмотреть: {objectLabel}"
 
 #. js-lingui-id: R+sqCn
 #: src/modules/page-layout/widgets/components/WidgetActionFieldSeeAll.tsx
@@ -26907,12 +26907,12 @@ msgstr "Выберите {0}"
 #. js-lingui-id: qR6X1R
 #: src/modules/object-record/advanced-filter/utils/getAdvancedFilterInputPlacedholderText.ts
 msgid "Select {fieldLabel}"
-msgstr "Выберите {fieldLabel}"
+msgstr "Выберите значение"
 
 #. js-lingui-id: XjisK1
 #: src/modules/object-record/advanced-filter/utils/getAdvancedFilterInputPlacedholderText.ts
 msgid "Select {targetObjectNameSingular}"
-msgstr "Выберите {targetObjectNameSingular}"
+msgstr "Выберите запись"
 
 #. js-lingui-id: 9NFSzl
 #: src/modules/settings/roles/role-permissions/rule-conditions/components/SettingsRoleRuleConditionMeValueSelect.tsx
@@ -27541,7 +27541,7 @@ msgstr "Сеансы"
 #. js-lingui-id: 4FANIj
 #: src/modules/object-record/record-table/record-table-cell/components/RecordTableCellDisplayContainer.tsx
 msgid "Set {placeholderForEmptyCell}"
-msgstr "Задать {placeholderForEmptyCell}"
+msgstr "Задать: {placeholderForEmptyCell}"
 
 #. js-lingui-id: PPcets
 #: src/modules/settings/data-model/fields/forms/select/components/SettingsDataModelFieldSelectFormOptionRow.tsx
@@ -27598,12 +27598,12 @@ msgstr "Установите необходимые переменные сер�
 #. js-lingui-id: tG3Y2G
 #: src/modules/views/view-picker/components/ViewPickerContentCreateMode.tsx
 msgid "Set up a Date field on {objectLabel} to create a Calendar"
-msgstr "Настройте поле «Дата» в {objectLabel}, чтобы создать календарь"
+msgstr "Чтобы создать календарь, добавьте в объект «{objectLabel}» поле «Дата»"
 
 #. js-lingui-id: TaMNRO
 #: src/modules/views/view-picker/components/ViewPickerContentCreateMode.tsx
 msgid "Set up a Select field on {objectLabel} to create a Kanban"
-msgstr "Настройте поле «Выбор» в {objectLabel}, чтобы создать Канбан"
+msgstr "Чтобы создать канбан, добавьте в объект «{objectLabel}» поле «Выбор»"
 
 #. js-lingui-id: +OEjaB
 #: src/modules/settings/emailing-domains/components/SettingsEmailingDomainAiSetup.tsx
@@ -31433,7 +31433,7 @@ msgstr "Истинно, если значение задано, даже есл�
 #: src/modules/settings/data-model/constants/SettingsNonCompositeFieldTypeConfigs.ts
 msgctxt "Field type"
 msgid "True/False"
-msgstr "Истина/Ложь"
+msgstr "Да/Нет"
 
 #. js-lingui-id: KDw4GX
 #: src/modules/activities/emails/components/EmailsCardErrorState.tsx
@@ -32174,7 +32174,7 @@ msgstr "Без названия"
 #. js-lingui-id: RNLIa9
 #: src/modules/object-record/record-picker/multiple-record-picker/components/MultipleRecordPickerMenuItemContent.tsx
 msgid "Untitled {labelSingular}"
-msgstr "Без названия {labelSingular}"
+msgstr "Без названия"
 
 #. js-lingui-id: yTvVot
 #: src/modules/object-core/agents/hooks/useCreateCoreAgent.ts
@@ -32267,7 +32267,7 @@ msgstr "Обновить"
 #: src/modules/object-record/record-form/components/RecordUpdateFormProvider.tsx
 #: src/modules/side-panel/pages/record-update-form/components/SidePanelRecordUpdateFormPage.tsx
 msgid "Update {0}"
-msgstr "Обновить {0}"
+msgstr "Обновить: {0}"
 
 #. js-lingui-id: ymv+je
 #: src/modules/object-record/record-update-multiple/components/UpdateMultipleRecordsContainer.tsx
@@ -32369,7 +32369,7 @@ msgstr "Обновление (определённых полей)"
 #: src/modules/ai/constants/CrudToolStatusLabels.ts
 #: src/modules/ai/constants/CrudToolStatusLabels.ts
 msgid "Updated {objectLabel}"
-msgstr "Обновлено {objectLabel}"
+msgstr "Обновлено: {objectLabel}"
 
 #. js-lingui-id: CqG02B
 #: src/modules/workflow/workflow-variables/utils/generate/generateWaitForEventOutputSchema.ts
@@ -32380,7 +32380,7 @@ msgstr "Обновлённые поля"
 #: src/modules/ai/constants/CrudToolStatusLabels.ts
 #: src/modules/ai/constants/CrudToolStatusLabels.ts
 msgid "Updating {objectLabel}"
-msgstr "Обновление {objectLabel}"
+msgstr "Обновление: {objectLabel}"
 
 #. js-lingui-id: RXbEvi
 #: src/pages/settings/enterprise/SettingsEnterprise.tsx
@@ -32611,12 +32611,12 @@ msgstr "Создано или обновлено"
 #. js-lingui-id: PZd7QF
 #: src/modules/ai/constants/CrudToolStatusLabels.ts
 msgid "Upserted {objectLabel}"
-msgstr "Добавлено/обновлено {objectLabel}"
+msgstr "Добавлено/обновлено: {objectLabel}"
 
 #. js-lingui-id: QaPv0m
 #: src/modules/ai/constants/CrudToolStatusLabels.ts
 msgid "Upserting {objectLabel}"
-msgstr "Добавление/обновление {objectLabel}"
+msgstr "Добавление/обновление: {objectLabel}"
 
 #. js-lingui-id: 87NUzq
 #: src/pages/settings/applications/components/SettingsApplicationRegistrationRedirectURIsTable.tsx
@@ -32805,7 +32805,7 @@ msgstr "Используйте только буквы, цифры, символ
 #. js-lingui-id: c6uZUV
 #: src/modules/object-record/record-table/empty-state/utils/getEmptyStateSubTitle.ts
 msgid "Use our API or add your first {objectLabel} manually"
-msgstr "Используйте наше API или добавьте первую {objectLabel} вручную"
+msgstr "Добавьте первую запись вручную или через API"
 
 #. js-lingui-id: z1f4Op
 #: src/modules/workflow/workflow-variables/utils/getWorkflowVariableSpecialItems.ts
@@ -33578,7 +33578,7 @@ msgstr "Мы столкнулись с проблемой подтвержден
 #. placeholder {0}: objectLabelSingular ?? ''
 #: src/modules/workflow/workflow-steps/workflow-actions/components/WorkflowEditActionUpsertRecord.tsx
 msgid "We match on these fields. If a {0} already exists, we update it. Otherwise, we create a new one."
-msgstr "Мы сопоставляем по этим полям. Если {0} уже существует, мы его обновляем. В противном случае, создаём новый."
+msgstr "Мы сопоставляем записи по этим полям. Если такая запись уже есть, мы её обновим, иначе создадим новую."
 
 #. js-lingui-id: InKpMt
 #: src/modules/getting-started/components/step-preview/GettingStartedDataModelPreview.tsx

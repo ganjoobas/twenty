@@ -36,6 +36,9 @@ env:
     src/modules/wschat/utils/claimWschatEnterAttempt.ts
     src/modules/wschat/utils/__tests__/buildWschatEnterUrl.test.ts
     src/modules/wschat/utils/__tests__/wschatRussianBooleanLabels.test.tsx
+    src/modules/wschat/utils/__tests__/wschatRussianCatalogFixes.test.ts
+    src/modules/object-record/record-field/ui/form-types/components/FormBooleanFieldInput.tsx
+    src/modules/command-menu-item/engine-command/record/components/DestroyRecordsCommand.tsx
     src/modules/wschat/components/IconWschat.tsx
     src/modules/wschat/components/__tests__/IconWschat.test.tsx
     src/modules/wschat/constants/WschatIcons.ts
@@ -103,6 +106,7 @@ jobs:
             src/modules/wschat/hooks/__tests__/useWschatAssistantsAllowed.test.ts \
             src/modules/wschat/utils/__tests__/buildWschatEnterUrl.test.ts \
             src/modules/wschat/utils/__tests__/wschatRussianBooleanLabels.test.tsx \
+            src/modules/wschat/utils/__tests__/wschatRussianCatalogFixes.test.ts \
             src/modules/wschat/components/__tests__/IconWschat.test.tsx \
             src/pages/settings/profile/appearance/components/__tests__/SalesfarceSettingsAppearance.test.tsx \
             src/modules/salesfarce/utils/__tests__/salesfarceConsumeRequest.test.ts \

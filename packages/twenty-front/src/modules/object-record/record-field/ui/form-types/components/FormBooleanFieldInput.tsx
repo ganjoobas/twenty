@@ -123,9 +123,10 @@ export const FormBooleanFieldInput = ({
         {draftValue.type === 'static' ? (
           <Select
             dropdownId={`${instanceId}-select-display`}
+            // WSChat fork: translated like every other boolean label (WSCHAT.md)
             options={[
-              { label: 'True', value: 'true', Icon: IconCheck },
-              { label: 'False', value: 'false', Icon: IconX },
+              { label: t`True`, value: 'true', Icon: IconCheck },
+              { label: t`False`, value: 'false', Icon: IconX },
             ]}
             value={castBooleanToStringifiedBoolean(draftValue.value)}
             onChange={onSelect}

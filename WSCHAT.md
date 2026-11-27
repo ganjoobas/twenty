@@ -111,6 +111,16 @@ This repository is upstream [Twenty](https://github.com/twentyhq/twenty) at tag
   compiled `locales/generated/ru-RU.ts`; the image recompiles from the `.po`).
   An upstream catalog update brings them back: `wschatRussianBooleanLabels.test.tsx`
   fails then.
+- Russian wording, front and server `ru-RU.po` (translations only, plus the
+  compiled `locales/generated/ru-RU.ts` of each): phrases with a field or object
+  name put in read right for any name (`Создать: Задача`, `Не выбрано`,
+  `Ничего не найдено`, command menu items), and true/false read «Да»/«Нет»
+  (`Count true`, `Probability of true`, field type `True/False`). Workflow forms
+  translate their boolean options (`FormBooleanFieldInput.tsx`, `t` around
+  `True`/`False`); the confirm button of permanent deletion reuses the title's
+  phrase instead of gluing `Permanently Destroy` and the name
+  (`DestroyRecordsCommand.tsx`). `wschatRussianCatalogFixes.test.ts` lists every changed
+  string and fails when a catalog update brings the shipped text back.
 - Icon `IconWschat` (WSChat's favicon, own colours on both themes) for our
   fields: `twenty-ui` `IconsProvider.tsx` takes `extraIcons` added to the
   registry, `App.tsx` passes `modules/wschat/constants/WschatIcons.ts`.

@@ -3803,7 +3803,7 @@ msgstr "Подсчитать пустые"
 #. js-lingui-id: sLDQbp
 #: src/modules/dashboard/chart-data/utils/get-aggregate-operation-label.util.ts
 msgid "Count false"
-msgstr "Подсчитать ложные"
+msgstr "Подсчитать «Нет»"
 
 #. js-lingui-id: DzRsDJ
 #: src/modules/dashboard/chart-data/utils/get-aggregate-operation-label.util.ts
@@ -3813,7 +3813,7 @@ msgstr "Подсчитать непустые"
 #. js-lingui-id: ft6dHY
 #: src/modules/dashboard/chart-data/utils/get-aggregate-operation-label.util.ts
 msgid "Count true"
-msgstr "Подсчитать \"true\""
+msgstr "Подсчитать «Да»"
 
 #. js-lingui-id: 9FZBbf
 #: src/modules/dashboard/chart-data/utils/get-aggregate-operation-label.util.ts
@@ -3838,7 +3838,7 @@ msgstr "Создать"
 #: src/engine/workspace-manager/twenty-standard-application/constants/standard-command-menu-item.constant.ts
 msgctxt "commandMenuItem.label"
 msgid "Create {objectLabelSingular}"
-msgstr "Создать {objectLabelSingular}"
+msgstr "Создать: {objectLabelSingular}"
 
 #. js-lingui-id: Y8ye8i
 #: src/engine/core-modules/getting-started/constants/getting-started-handover-workflow.constant.ts
@@ -4509,7 +4509,7 @@ msgstr "Удалить"
 #: src/engine/workspace-manager/twenty-standard-application/constants/standard-command-menu-item.constant.ts
 msgctxt "commandMenuItem.label"
 msgid "Delete {objectLabel}"
-msgstr "Удалить {objectLabel}"
+msgstr "Удалить: {objectLabel}"
 
 #. js-lingui-id: GKRkPC
 #: src/engine/workspace-manager/workspace-migration/workspace-migration-builder/validators/services/flat-field-metadata-validator.service.ts
@@ -4520,7 +4520,7 @@ msgstr "Удалить поле связи вместе с его целями"
 #: src/engine/workspace-manager/twenty-standard-application/constants/standard-command-menu-item.constant.ts
 msgctxt "commandMenuItem.shortLabel"
 msgid "Deleted {objectLabelPlural}"
-msgstr "Удалено {objectLabelPlural}"
+msgstr "Удалённые: {objectLabelPlural}"
 
 #. js-lingui-id: wG932w
 #: src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/compute-short-link-standard-flat-field-metadata.util.ts
@@ -5419,7 +5419,7 @@ msgstr "Экспортировать"
 #: src/engine/workspace-manager/twenty-standard-application/constants/standard-command-menu-item.constant.ts
 msgctxt "commandMenuItem.label"
 msgid "Export {objectLabel}"
-msgstr "Экспорт {objectLabel}"
+msgstr "Экспорт: {objectLabel}"
 
 #. js-lingui-id: YBwCnL
 #: src/engine/core-modules/record-export/services/record-export.workspace-service.ts
@@ -6406,7 +6406,7 @@ msgstr "Не удалось пройти аутентификацию через
 #: src/engine/metadata-modules/flat-command-menu-item/utils/build-object-navigation-universal-flat-command-menu-item.util.ts
 msgctxt "commandMenuItem.label"
 msgid "Go to {objectLabelPlural}"
-msgstr "Перейти к {objectLabelPlural}"
+msgstr "Перейти: {objectLabelPlural}"
 
 #. js-lingui-id: tKVJbL
 #: src/engine/workspace-manager/twenty-standard-application/constants/standard-command-menu-item.constant.ts
@@ -6595,7 +6595,7 @@ msgstr "Скрыть удаленные"
 #: src/engine/workspace-manager/twenty-standard-application/constants/standard-command-menu-item.constant.ts
 msgctxt "commandMenuItem.label"
 msgid "Hide deleted {objectLabelPlural}"
-msgstr "Скрыть удаленные {objectLabelPlural}"
+msgstr "Скрыть удалённые: {objectLabelPlural}"
 
 #. js-lingui-id: 52iQDS
 #: src/engine/metadata-modules/page-layout-tab/constants/standard-page-layout-tab-titles.ts
@@ -6744,7 +6744,7 @@ msgstr "Импорт"
 #: src/engine/workspace-manager/twenty-standard-application/constants/standard-command-menu-item.constant.ts
 msgctxt "commandMenuItem.label"
 msgid "Import {objectLabelPlural}"
-msgstr "Импортировать {objectLabelPlural}"
+msgstr "Импорт: {objectLabelPlural}"
 
 #. js-lingui-id: vXTVX9
 #: src/engine/core-modules/getting-started/constants/getting-started-step-content.constant.ts
@@ -8723,13 +8723,13 @@ msgstr "Объединить"
 #: src/engine/workspace-manager/twenty-standard-application/constants/standard-command-menu-item.constant.ts
 msgctxt "commandMenuItem.label"
 msgid "Merge {objectLabelPlural}"
-msgstr "Объединить {objectLabelPlural}"
+msgstr "Объединить: {objectLabelPlural}"
 
 #. js-lingui-id: pp414+
 #: src/engine/workspace-manager/twenty-standard-application/constants/standard-command-menu-item.constant.ts
 msgctxt "commandMenuItem.label"
 msgid "Merge with Another {objectLabelSingular}"
-msgstr "Объединить с другим {objectLabelSingular}"
+msgstr "Объединить с другой записью"
 
 #. js-lingui-id: 27Moeu
 #: src/modules/blocklist/query-hooks/blocklist-merge-many.pre-query.hook.ts
@@ -9380,13 +9380,13 @@ msgstr "Имена не синхронизированы с метками"
 #: src/engine/workspace-manager/twenty-standard-application/constants/standard-command-menu-item.constant.ts
 msgctxt "commandMenuItem.label"
 msgid "Navigate to next {objectLabelSingular}"
-msgstr "Перейти к следующему {objectLabelSingular}"
+msgstr "Следующая запись"
 
 #. js-lingui-id: GjtAeJ
 #: src/engine/workspace-manager/twenty-standard-application/constants/standard-command-menu-item.constant.ts
 msgctxt "commandMenuItem.label"
 msgid "Navigate to previous {objectLabelSingular}"
-msgstr "Перейти к предыдущему {objectLabelSingular}"
+msgstr "Предыдущая запись"
 
 #. js-lingui-id: RJyaoR
 #: src/engine/workspace-manager/workspace-migration/workspace-migration-builder/validators/services/flat-navigation-menu-item-validator.service.ts
@@ -10804,7 +10804,7 @@ msgstr "Процент заполненных"
 #: src/engine/workspace-manager/twenty-standard-application/constants/standard-command-menu-item.constant.ts
 msgctxt "commandMenuItem.label"
 msgid "Permanently destroy {objectLabel}"
-msgstr "Навсегда уничтожить {objectLabel}"
+msgstr "Удалить навсегда: {objectLabel}"
 
 #. js-lingui-id: cmLTur
 #: src/engine/workspace-manager/workspace-migration/workspace-migration-builder/validators/utils/get-permission-flag-not-found-error.util.ts
@@ -11996,7 +11996,7 @@ msgstr "Восстановить"
 #: src/engine/workspace-manager/twenty-standard-application/constants/standard-command-menu-item.constant.ts
 msgctxt "commandMenuItem.label"
 msgid "Restore {objectLabel}"
-msgstr "Восстановить {objectLabel}"
+msgstr "Восстановить: {objectLabel}"
 
 #. js-lingui-id: Ns9Rpt
 #: src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/compute-record-share-standard-flat-field-metadata.util.ts
@@ -12587,7 +12587,7 @@ msgstr "Безопасность"
 #: src/engine/workspace-manager/twenty-standard-application/constants/standard-command-menu-item.constant.ts
 msgctxt "commandMenuItem.label"
 msgid "See deleted {objectLabelPlural}"
-msgstr "Показать удаленные {objectLabelPlural}"
+msgstr "Показать удалённые: {objectLabelPlural}"
 
 #. js-lingui-id: VGVS7x
 #: src/engine/workspace-manager/twenty-standard-application/constants/standard-command-menu-item.constant.ts
@@ -16402,7 +16402,7 @@ msgstr "Обновить"
 #: src/engine/workspace-manager/twenty-standard-application/constants/standard-command-menu-item.constant.ts
 msgctxt "commandMenuItem.label"
 msgid "Update {objectLabelPlural}"
-msgstr "Обновить {objectLabelPlural}"
+msgstr "Обновить: {objectLabelPlural}"
 
 #. js-lingui-id: QGupmf
 #: src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/compute-calendar-event-standard-flat-field-metadata.util.ts
