@@ -126,11 +126,15 @@ export class WschatBridgeWorkspaceCreationService {
 
     // Never throws; what failed is retried by enforce
     if (dataModelReady) {
-      await this.starterLayoutService.apply({
+      const starterLayout = await this.starterLayoutService.apply({
         workspaceId: workspace.id,
         locale: input.locale ?? 'en',
         actions: input.actions,
       });
+
+      this.logger.log(
+        `Workspace ${workspace.id}: starter layout at version ${starterLayout.starterLayoutVersion}, created ${starterLayout.starterLayoutCreated.join(', ') || 'nothing'}`,
+      );
     }
 
     this.logger.log(

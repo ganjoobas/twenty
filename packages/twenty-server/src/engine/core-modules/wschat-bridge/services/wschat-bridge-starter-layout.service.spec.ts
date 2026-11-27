@@ -57,7 +57,7 @@ describe('WschatBridgeStarterLayoutService', () => {
       }: {
         definition: { reportName: string };
       }): Promise<'changed' | 'unchanged' | 'skipped'> =>
-        definition.reportName === 'wschatCall.index' ? 'skipped' : 'changed',
+        definition.reportName === 'wschatCall.main' ? 'skipped' : 'changed',
     ),
   };
 
@@ -76,6 +76,19 @@ describe('WschatBridgeStarterLayoutService', () => {
     ]),
   };
 
+  const indexViewRevertService = {
+    revert: jest.fn(
+      async ({
+        definition,
+      }: {
+        definition: { reportName: string };
+      }): Promise<'changed' | 'unchanged' | 'skipped'> =>
+        definition.reportName === 'wschatConversation.main'
+          ? 'changed'
+          : 'skipped',
+    ),
+  };
+
   const service = new WschatBridgeStarterLayoutService(
     keyValuePairService as never,
     workspaceCacheService as never,
@@ -84,6 +97,7 @@ describe('WschatBridgeStarterLayoutService', () => {
     starterIndexViewsService as never,
     sampleWorkflowsService as never,
     sampleActionWorkflowsService as never,
+    indexViewRevertService as never,
   );
 
   beforeEach(() => {
@@ -131,8 +145,8 @@ describe('WschatBridgeStarterLayoutService', () => {
     expect(second.starterLayoutCreated).toEqual([]);
   });
 
-  it('should give a workspace at version 1 only what version 2 brings', async () => {
-    storedVersion = 1;
+  it('should give a workspace at version 4 only the main views of version 5', async () => {
+    storedVersion = 4;
 
     const result = await service.apply({
       workspaceId: WORKSPACE_ID,
@@ -141,11 +155,21 @@ describe('WschatBridgeStarterLayoutService', () => {
     });
 
     expect(starterViewsService.createIfMissing).not.toHaveBeenCalled();
-    expect(starterIndexViewsService.apply).toHaveBeenCalledTimes(4);
+    expect(sampleActionWorkflowsService.createSamples).not.toHaveBeenCalled();
     expect(
-      sampleWorkflowsService.deactivateFactoryWorkflows,
-    ).toHaveBeenCalledTimes(1);
-    expect(result.starterLayoutVersion).toBe(4);
+      starterIndexViewsService.apply.mock.calls.map(
+        ([{ definition }]) => definition.reportName,
+      ),
+    ).toEqual(['wschatConversation.main', 'wschatCall.main']);
+    expect(result.starterLayoutChanged).toEqual([
+      'wschatConversation.index',
+      'wschatConversation.main',
+    ]);
+    expect(result.starterLayoutSkipped).toEqual([
+      'wschatCall.index',
+      'wschatCall.main',
+    ]);
+    expect(storedVersion).toBe(5);
   });
 
   it('should give a workspace at version 2 only the workflow switch-off, and keep 2 if it fails', async () => {
@@ -175,9 +199,7 @@ describe('WschatBridgeStarterLayoutService', () => {
       actions: ACTIONS,
     });
 
-    expect(result.starterLayoutFailed).toEqual([
-      'wschatConversation.index: busy',
-    ]);
+    expect(result.starterLayoutFailed).toEqual(['person.index: busy']);
     expect(result.starterLayoutVersion).toBe(1);
     expect(storedVersion).toBe(1);
   });
@@ -280,6 +302,58 @@ describe('WschatBridgeStarterLayoutService', () => {
       'workflowSample.closedConversationMessage',
       'workflowSample.scheduledReminder',
     ]);
-    expect(storedVersion).toBe(4);
+    expect(storedVersion).toBe(5);
+  });
+
+  // The live defect of image 11: creation brings no actions, so nothing was recorded and every enforce
+  // walked version 1 again (and would have recreated views the company deleted)
+  it('should go from creation to version 5 across enforce calls without redoing a step', async () => {
+    const creation = await service.apply({
+      workspaceId: WORKSPACE_ID,
+      locale: 'ru',
+    });
+
+    expect(creation.starterLayoutVersion).toBe(3);
+    expect(storedVersion).toBe(3);
+    expect(sampleActionWorkflowsService.createSamples).not.toHaveBeenCalled();
+
+    jest.clearAllMocks();
+
+    const enforceWithoutActions = await service.apply({
+      workspaceId: WORKSPACE_ID,
+      locale: 'ru',
+    });
+
+    expect(starterViewsService.createIfMissing).not.toHaveBeenCalled();
+    expect(starterIndexViewsService.apply).not.toHaveBeenCalled();
+    expect(
+      sampleWorkflowsService.deactivateFactoryWorkflows,
+    ).not.toHaveBeenCalled();
+    expect(enforceWithoutActions.starterLayoutVersion).toBe(3);
+
+    const enforceWithActions = await service.apply({
+      workspaceId: WORKSPACE_ID,
+      locale: 'ru',
+      actions: ACTIONS,
+    });
+
+    expect(sampleActionWorkflowsService.createSamples).toHaveBeenCalledTimes(1);
+    expect(enforceWithActions.starterLayoutVersion).toBe(
+      WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION,
+    );
+    expect(storedVersion).toBe(WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION);
+
+    jest.clearAllMocks();
+
+    const again = await service.apply({
+      workspaceId: WORKSPACE_ID,
+      locale: 'ru',
+      actions: ACTIONS,
+    });
+
+    expect(starterViewsService.createIfMissing).not.toHaveBeenCalled();
+    expect(starterIndexViewsService.apply).not.toHaveBeenCalled();
+    expect(sampleActionWorkflowsService.createSamples).not.toHaveBeenCalled();
+    expect(again.starterLayoutCreated).toEqual([]);
   });
 });

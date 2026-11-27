@@ -4,10 +4,17 @@ import { ViewKey } from 'twenty-shared/types';
 import { isDefined } from 'twenty-shared/utils';
 
 import { ApplicationService } from 'src/engine/core-modules/application/application.service';
-import { type WschatBridgeLocale } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-data-model.constant';
-import { type WschatBridgeIndexViewDefinition } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-starter-layout.constant';
+import {
+  WSCHAT_BRIDGE_OBJECTS,
+  type WschatBridgeLocale,
+} from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-data-model.constant';
+import {
+  WSCHAT_BRIDGE_INITIAL_VIEW_FIELD_NAMES,
+  type WschatBridgeIndexViewDefinition,
+} from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-starter-layout.constant';
 import {
   isIndexViewUntouched,
+  isInitialViewUntouched,
   planIndexViewAppend,
   planIndexViewReshape,
   type WschatBridgeIndexViewField,
@@ -15,6 +22,7 @@ import {
 import { fromCreateViewFieldInputToFlatViewFieldToCreate } from 'src/engine/metadata-modules/flat-view-field/utils/from-create-view-field-input-to-flat-view-field-to-create.util';
 import { fromUpdateViewFieldInputToFlatViewFieldToUpdateOrThrow } from 'src/engine/metadata-modules/flat-view-field/utils/from-update-view-field-input-to-flat-view-field-to-update-or-throw.util';
 import { fromUpdateViewInputToFlatViewToUpdateOrThrow } from 'src/engine/metadata-modules/flat-view/utils/from-update-view-input-to-flat-view-to-update-or-throw.util';
+import { getInitialObjectViewUniversalIdentifier } from 'src/engine/metadata-modules/view/utils/get-initial-object-view-universal-identifier.util';
 import { INDEX_VIEW_NAME } from 'src/engine/metadata-modules/view/constants/index-view-name.constant';
 import { WorkspaceCacheService } from 'src/engine/workspace-cache/services/workspace-cache.service';
 import { WorkspaceMigrationBuilderException } from 'src/engine/workspace-manager/workspace-migration/exceptions/workspace-migration-builder-exception';
@@ -66,13 +74,21 @@ export class WschatBridgeStarterIndexViewsService {
       maps.flatObjectMetadataMaps.byUniversalIdentifier[
         definition.objectUniversalIdentifier
       ];
+    const initialViewUniversalIdentifier =
+      getInitialObjectViewUniversalIdentifier({
+        viewApplicationUniversalIdentifier:
+          workspaceCustomFlatApplication.universalIdentifier,
+        objectUniversalIdentifier: definition.objectUniversalIdentifier,
+      });
     const flatView = Object.values(
       maps.flatViewMaps.byUniversalIdentifier,
     ).find(
       (candidate) =>
         isDefined(candidate) &&
         candidate.objectMetadataId === flatObjectMetadata?.id &&
-        candidate.key === ViewKey.INDEX &&
+        (definition.view === 'initial'
+          ? candidate.universalIdentifier === initialViewUniversalIdentifier
+          : candidate.key === ViewKey.INDEX) &&
         !isDefined(candidate.deletedAt),
     );
 
@@ -110,14 +126,23 @@ export class WschatBridgeStarterIndexViewsService {
       }));
 
     const isReshape = definition.mode === 'reshape';
+    const targetNames = Object.values(definition.name ?? {});
+
+    // Already ours (a repeated run): nothing to do
+    if (isReshape && targetNames.includes(flatView.name)) {
+      return 'unchanged';
+    }
 
     if (
       isReshape &&
-      !isIndexViewUntouched({
-        viewName: flatView.name,
-        shippedViewName: INDEX_VIEW_NAME,
-        viewHasOverrides: hasOverrides(flatView.overrides),
+      !this.isUntouched({
+        definition,
+        flatView,
         viewFields,
+        objectLabelPlurals: [
+          flatObjectMetadata.labelPlural,
+          ...this.shippedLabelPlurals(definition.objectUniversalIdentifier),
+        ],
       })
     ) {
       return 'skipped';
@@ -160,7 +185,13 @@ export class WschatBridgeStarterIndexViewsService {
                     flatEntityToDelete: [],
                     flatEntityToUpdate: [
                       fromUpdateViewInputToFlatViewToUpdateOrThrow({
-                        updateViewInput: { id: flatView.id, name: newName },
+                        updateViewInput: {
+                          id: flatView.id,
+                          name: newName,
+                          ...(isDefined(definition.position)
+                            ? { position: definition.position }
+                            : {}),
+                        },
                         flatViewMaps: maps.flatViewMaps,
                         flatViewGroupMaps: maps.flatViewGroupMaps,
                         flatFieldMetadataMaps: maps.flatFieldMetadataMaps,
@@ -224,5 +255,40 @@ export class WschatBridgeStarterIndexViewsService {
     }
 
     return 'changed';
+  }
+
+  private isUntouched({
+    definition,
+    flatView,
+    viewFields,
+    objectLabelPlurals,
+  }: {
+    definition: WschatBridgeIndexViewDefinition;
+    flatView: { name: string; overrides?: unknown };
+    viewFields: WschatBridgeIndexViewField[];
+    objectLabelPlurals: string[];
+  }): boolean {
+    return definition.view === 'initial'
+      ? isInitialViewUntouched({
+          viewName: flatView.name,
+          shippedViewNames: objectLabelPlurals.map((label) => `All ${label}`),
+          viewFields,
+          shippedFieldNames: WSCHAT_BRIDGE_INITIAL_VIEW_FIELD_NAMES,
+        })
+      : isIndexViewUntouched({
+          viewName: flatView.name,
+          shippedViewName: INDEX_VIEW_NAME,
+          viewHasOverrides: hasOverrides(flatView.overrides),
+          viewFields,
+        });
+  }
+
+  // The initial view's name was materialised from the label at object creation, in either of our locales
+  private shippedLabelPlurals(objectUniversalIdentifier: string): string[] {
+    const definition = WSCHAT_BRIDGE_OBJECTS.find(
+      (object) => object.universalIdentifier === objectUniversalIdentifier,
+    );
+
+    return isDefined(definition) ? Object.values(definition.labelPlural) : [];
   }
 }

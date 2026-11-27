@@ -16,7 +16,7 @@ export const WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION_KEY =
   'WSCHAT_STARTER_LAYOUT_VERSION';
 
 // Raise it with new views tagged with the new number; a workspace only gets views newer than what it has
-export const WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION = 4;
+export const WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION = 5;
 
 // Version that switches off upstream's sample workflows (WschatBridgeSampleWorkflowsService)
 export const WSCHAT_BRIDGE_SAMPLE_WORKFLOWS_LAYOUT_VERSION = 3;
@@ -79,7 +79,7 @@ export type WschatBridgeStarterViewDefinition = {
   name: WschatBridgeLocalizedText;
   icon: string;
   type: ViewType.TABLE | ViewType.KANBAN;
-  // Upstream views of these objects sit at 0, 1, 2…; -1 lists ours first
+  // Upstream views sit at 0 (INDEX), 1 (initial view of custom objects), 2…; -1 lists ours first
   position: number;
   groupByFieldName?: string;
   // By field name; the object's label identifier must come first
@@ -111,7 +111,7 @@ export const WSCHAT_BRIDGE_STARTER_VIEWS: WschatBridgeStarterViewDefinition[] =
       name: { en: 'Open', ru: 'Открытые' },
       icon: 'IconMessageCircle',
       type: ViewType.TABLE,
-      position: 1,
+      position: 2,
       fieldNames: [
         'name',
         'person',
@@ -138,7 +138,7 @@ export const WSCHAT_BRIDGE_STARTER_VIEWS: WschatBridgeStarterViewDefinition[] =
       name: { en: 'By outcome', ru: 'По итогам' },
       icon: 'IconLayoutKanban',
       type: ViewType.KANBAN,
-      position: 2,
+      position: 3,
       groupByFieldName: 'outcome',
       fieldNames: ['name', 'person', 'channel', 'responsible', 'closedAt'],
     },
@@ -150,7 +150,7 @@ export const WSCHAT_BRIDGE_STARTER_VIEWS: WschatBridgeStarterViewDefinition[] =
       name: { en: 'Missed', ru: 'Пропущенные' },
       icon: 'IconPhoneOff',
       type: ViewType.TABLE,
-      position: 1,
+      position: 2,
       fieldNames: [
         'name',
         'person',
@@ -176,56 +176,61 @@ export type WschatBridgeIndexViewDefinition = {
   reportName: string;
   objectUniversalIdentifier: string;
   mode: 'reshape' | 'append';
+  // index: the INDEX view (what people see on standard objects); initial: the view createOneObject adds to a
+  // custom object, which the app opens first, as the first non-INDEX view by position
+  view: 'index' | 'initial';
   name?: WschatBridgeLocalizedText;
+  position?: number;
   fieldNames: string[];
+  // Also puts back the INDEX view version 2 reshaped with these same names and columns
+  revertsIndexAs?: string;
 };
 
+// Columns of the initial view of a custom object as upstream creates it (computeInitialObjectViewFieldsToCreate)
+export const WSCHAT_BRIDGE_INITIAL_VIEW_FIELD_NAMES = [
+  'name',
+  'createdAt',
+  'createdBy',
+  'updatedAt',
+  'updatedBy',
+];
+
+const CONVERSATION_MAIN_FIELDS = [
+  'name',
+  'person',
+  'channel',
+  'state',
+  'outcome',
+  'responsible',
+  'lastMessageAt',
+  'lastMessageFrom',
+  'startedAt',
+  'wschatUrl',
+];
+
+const CALL_MAIN_FIELDS = [
+  'name',
+  'person',
+  'direction',
+  'status',
+  'channel',
+  'startedAt',
+  'durationSeconds',
+  'answeredBy',
+  'outcome',
+  'summary',
+  'wschatUrl',
+];
+
 export const WSCHAT_BRIDGE_INDEX_VIEWS: WschatBridgeIndexViewDefinition[] = [
-  {
-    version: 2,
-    reportName: 'wschatConversation.index',
-    objectUniversalIdentifier:
-      WSCHAT_BRIDGE_CONVERSATION_OBJECT.universalIdentifier,
-    mode: 'reshape',
-    name: { en: 'All conversations', ru: 'Все обращения' },
-    fieldNames: [
-      'name',
-      'person',
-      'channel',
-      'state',
-      'outcome',
-      'responsible',
-      'lastMessageAt',
-      'lastMessageFrom',
-      'startedAt',
-      'wschatUrl',
-    ],
-  },
-  {
-    version: 2,
-    reportName: 'wschatCall.index',
-    objectUniversalIdentifier: WSCHAT_BRIDGE_CALL_OBJECT.universalIdentifier,
-    mode: 'reshape',
-    name: { en: 'All calls', ru: 'Все звонки' },
-    fieldNames: [
-      'name',
-      'person',
-      'direction',
-      'status',
-      'channel',
-      'startedAt',
-      'durationSeconds',
-      'answeredBy',
-      'outcome',
-      'summary',
-      'wschatUrl',
-    ],
-  },
+  // Version 2 also reshaped the INDEX views of conversations and calls; workspaces created since skip that,
+  // as the app opens the initial view (version 5)
   {
     version: 2,
     reportName: 'person.index',
     objectUniversalIdentifier: STANDARD_OBJECTS.person.universalIdentifier,
     mode: 'append',
+    view: 'index',
     fieldNames: ['wschatLastContactAt', 'wschatLastChannel', 'wschatUrl'],
   },
   {
@@ -233,6 +238,30 @@ export const WSCHAT_BRIDGE_INDEX_VIEWS: WschatBridgeIndexViewDefinition[] = [
     reportName: 'company.index',
     objectUniversalIdentifier: STANDARD_OBJECTS.company.universalIdentifier,
     mode: 'append',
+    view: 'index',
     fieldNames: ['wschatPhones', 'wschatUrl'],
+  },
+  {
+    version: 5,
+    reportName: 'wschatConversation.main',
+    revertsIndexAs: 'wschatConversation.index',
+    objectUniversalIdentifier:
+      WSCHAT_BRIDGE_CONVERSATION_OBJECT.universalIdentifier,
+    mode: 'reshape',
+    view: 'initial',
+    name: { en: 'All conversations', ru: 'Все обращения' },
+    position: 0,
+    fieldNames: CONVERSATION_MAIN_FIELDS,
+  },
+  {
+    version: 5,
+    reportName: 'wschatCall.main',
+    revertsIndexAs: 'wschatCall.index',
+    objectUniversalIdentifier: WSCHAT_BRIDGE_CALL_OBJECT.universalIdentifier,
+    mode: 'reshape',
+    view: 'initial',
+    name: { en: 'All calls', ru: 'Все звонки' },
+    position: 0,
+    fieldNames: CALL_MAIN_FIELDS,
   },
 ];

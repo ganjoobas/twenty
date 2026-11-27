@@ -461,10 +461,10 @@ Response:
   "dataModelReady": true,
   "starterLayoutCreated": ["task.byType", "wschatConversation.open", "wschatConversation.byOutcome", "wschatCall.missed"],
   "starterLayoutRelabelled": ["task.status", "opportunity.stage"],
-  "starterLayoutChanged": ["wschatConversation.index", "wschatCall.index", "person.index", "company.index", "workflow.quickLead", "workflow.createCompanyFromPerson"],
+  "starterLayoutChanged": ["person.index", "company.index", "workflow.quickLead", "workflow.createCompanyFromPerson", "wschatConversation.main", "wschatCall.main"],
   "starterLayoutSkipped": [],
   "starterLayoutFailed": [],
-  "starterLayoutVersion": 4
+  "starterLayoutVersion": 5
 }
 ```
 
@@ -746,7 +746,7 @@ so a Russian workspace showed `To do` / `In progress` / `Done`.
   reset the labels to English, the rule "relabel while it reads as shipped"
   runs on every `enforce` and puts them back, with no extra cost otherwise.
 
-**Starter views** (version 1), once per layout version:
+**Starter views** (version 1), once per layout version (positions in the table below as created since 27.11):
 
 | Object | View | Shape |
 | --- | --- | --- |
@@ -771,36 +771,60 @@ so a Russian workspace showed `To do` / `In progress` / `Done`.
   placeholder `NOT_SET` (always hidden: nobody holds it) and "no value" last.
   Archived dictionary entries keep their column (they are still options).
 - Once: the applied version is a `core.keyValuePair` row of the workspace
-  (`CONFIG_VARIABLE`, key `WSCHAT_STARTER_LAYOUT_VERSION`). A workspace gets
-  only views of versions above it, so a view the company deleted or changed
-  is never brought back. The version is written only when every view of it
-  exists; a run that failed part-way creates the missing ones next time and
-  skips those already there (by universal identifier). A view deleted by the
-  company between such a failure and its retry would come back once.
+  (`CONFIG_VARIABLE`, key `WSCHAT_STARTER_LAYOUT_VERSION`). Versions are
+  walked in order and each one is recorded as soon as it is complete, so a
+  view the company deleted or changed is never brought back. A version that
+  is not complete (a failure, or version 4 waiting for `actions`) stops the
+  walk there; the next call resumes at it. Until 27.11 the version was written
+  only after the last one, so a workspace created without `actions` stayed at
+  0 and every `enforce` walked version 1 again. A run that failed part-way
+  creates the missing views next time and skips those already there (by
+  universal identifier).
 - To ship more later: raise `WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION` and tag the
   new views with it.
 
-**Main views** (version 2, `services/wschat-bridge-starter-index-views.service.ts`):
-each object's INDEX view, edited with upstream's view and view-field utils in
-one workspace migration. Columns are only added, moved or hidden, never deleted.
+**Main views** (`services/wschat-bridge-starter-index-views.service.ts`), edited
+with upstream's view and view-field utils in one workspace migration; columns
+are only added, moved or hidden, never deleted.
 
-| Object | Change |
-| --- | --- |
-| wschatConversation | renamed All conversations / Все обращения; columns name, person, channel, state, outcome, responsible, lastMessageAt, lastMessageFrom, startedAt, wschatUrl, the others hidden after them |
-| wschatCall | renamed All calls / Все звонки; columns name, person, direction, status, channel, startedAt, durationSeconds, answeredBy, outcome, summary, wschatUrl, the others hidden |
-| person | wschatLastContactAt, wschatLastChannel, wschatUrl appended, unless already on the view (shown or hidden) |
-| company | wschatPhones, wschatUrl appended, same rule |
+A custom object has two "All …" tables: the INDEX view (`key = INDEX`,
+position 0, engine-made, named by the template `All {objectLabelPlural}`) and
+the initial view `createOneObject` adds for an object of the workspace's own
+application (`computeInitialObjectViewToCreate`: `All <label plural>` as it
+was at creation, position 1, not engine-made, universal identifier from
+`getInitialObjectViewUniversalIdentifier`). The app opens the first non-INDEX
+view by position (`computeObjectViewTargetIds`), so people see the initial
+view. Standard objects have only the INDEX table.
 
-- The two renames happen only while the view is untouched: still named
-  upstream's template `All {objectLabelPlural}`, no override on the view, and
-  every column engine-made (`isSystemSideEffect`), shown and without override.
-  Edits made in the app on engine-made views and columns are stored as
-  overrides (`isCallerOverridingEntity`), and columns a company adds are not
-  engine-made, so renaming, hiding, moving and adding are all seen; a column
-  the company deleted is not. A touched view is reported in
-  `starterLayoutSkipped` and never changed.
+| Version | Object | View | Change |
+| --- | --- | --- | --- |
+| 2 | person | INDEX | wschatLastContactAt, wschatLastChannel, wschatUrl appended, unless already on the view (shown or hidden) |
+| 2 | company | INDEX | wschatPhones, wschatUrl appended, same rule |
+| 5 | wschatConversation | initial | renamed All conversations / Все обращения, moved to position 0; columns name, person, channel, state, outcome, responsible, lastMessageAt, lastMessageFrom, startedAt, wschatUrl, the others hidden after them |
+| 5 | wschatCall | initial | renamed All calls / Все звонки, position 0; columns name, person, direction, status, channel, startedAt, durationSeconds, answeredBy, outcome, summary, wschatUrl |
+
+- Version 2 used to rename and reshape the INDEX views of conversations and
+  calls (through overrides, as INDEX is engine-made). Version 5 puts them back
+  first (`services/wschat-bridge-index-view-revert.service.ts`): while the
+  effective name is one of ours and exactly our columns are shown, each
+  overridden engine column is rewritten to its base position and visibility
+  (an update equal to the value beneath drops the override), the name too,
+  and columns version 2 added are removed; anything else is the company's and
+  goes to `starterLayoutSkipped` (`wschatConversation.index`,
+  `wschatCall.index`). The view picker lists the INDEX view only while it is
+  the open view (`computeViewPickerVisibleViews`), whatever its overrides.
+- Version 5 changes the initial view only while untouched: named
+  `All <label plural>` in one of our labels or the current one, and every
+  column shown and among upstream's first columns (`name`, `createdAt`,
+  `createdBy`, `updatedAt`, `updatedBy`). The view belongs to the workspace's
+  own application, so a company's edits change it directly: a rename, a
+  hidden or an added column is seen, a moved or deleted one is not. A touched
+  view goes to `starterLayoutSkipped`; one already carrying our name is left
+  as it is.
+- Starter views of version 1 sit at positions 2–3 on these objects (since
+  27.11; earlier workspaces have them at 1–2), so they never tie with the
+  initial view.
 - Report: `starterLayoutChanged` (main views written), `starterLayoutSkipped`.
-  A workspace already at version 1 gets only these.
 
 **Sample workflows** (version 3, `services/wschat-bridge-sample-workflows.service.ts`):
 upstream's `prefillWorkflows` creates "Quick Lead" (manual) and "Create company

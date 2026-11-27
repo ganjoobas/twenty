@@ -32,6 +32,25 @@ export const isIndexViewUntouched = ({
       isSystemSideEffect && !hasOverrides && isVisible,
   );
 
+// The view createOneObject adds next to INDEX (`All <label>`, not engine-made, so edits leave no override):
+// untouched while it keeps a shipped name and only its first columns, all shown
+export const isInitialViewUntouched = ({
+  viewName,
+  shippedViewNames,
+  viewFields,
+  shippedFieldNames,
+}: {
+  viewName: string;
+  shippedViewNames: string[];
+  viewFields: WschatBridgeIndexViewField[];
+  shippedFieldNames: string[];
+}): boolean =>
+  shippedViewNames.includes(viewName) &&
+  viewFields.every(
+    ({ fieldName, isVisible, hasOverrides }) =>
+      isVisible && !hasOverrides && shippedFieldNames.includes(fieldName),
+  );
+
 // Exactly `fieldNames` in that order; other columns are hidden after them, never deleted
 export const planIndexViewReshape = ({
   viewFields,

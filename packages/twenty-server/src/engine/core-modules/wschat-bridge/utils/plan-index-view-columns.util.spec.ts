@@ -1,5 +1,6 @@
 import {
   isIndexViewUntouched,
+  isInitialViewUntouched,
   planIndexViewAppend,
   planIndexViewReshape,
   type WschatBridgeIndexViewField,
@@ -137,5 +138,61 @@ describe('planIndexViewAppend', () => {
       ],
       toUpdate: [],
     });
+  });
+});
+
+describe('isInitialViewUntouched', () => {
+  const initialFields = [
+    'name',
+    'createdAt',
+    'createdBy',
+    'updatedAt',
+    'updatedBy',
+  ].map((fieldName, position) =>
+    engineField(fieldName, position, { isSystemSideEffect: false }),
+  );
+  const base = {
+    viewName: 'All Обращения',
+    shippedViewNames: ['All Обращения', 'All Conversations'],
+    viewFields: initialFields,
+    shippedFieldNames: [
+      'name',
+      'createdAt',
+      'createdBy',
+      'updatedAt',
+      'updatedBy',
+    ],
+  };
+
+  it('should accept the view createOneObject made, in either label', () => {
+    expect(isInitialViewUntouched(base)).toBe(true);
+    expect(
+      isInitialViewUntouched({ ...base, viewName: 'All Conversations' }),
+    ).toBe(true);
+  });
+
+  it('should refuse a renamed view, a hidden or an added column', () => {
+    expect(isInitialViewUntouched({ ...base, viewName: 'Мои' })).toBe(false);
+    expect(
+      isInitialViewUntouched({
+        ...base,
+        viewFields: [
+          ...initialFields.slice(1),
+          engineField('name', 0, {
+            isVisible: false,
+            isSystemSideEffect: false,
+          }),
+        ],
+      }),
+    ).toBe(false);
+    expect(
+      isInitialViewUntouched({
+        ...base,
+        viewFields: [
+          ...initialFields,
+          engineField('channel', 5, { isSystemSideEffect: false }),
+        ],
+      }),
+    ).toBe(false);
   });
 });

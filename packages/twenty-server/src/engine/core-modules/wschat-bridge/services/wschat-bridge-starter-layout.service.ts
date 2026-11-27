@@ -16,6 +16,7 @@ import {
   type WschatBridgeStandardOptionLabels,
   type WschatBridgeStarterLayoutKeyValueTypesMap,
 } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-starter-layout.constant';
+import { WschatBridgeIndexViewRevertService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-index-view-revert.service';
 import { WschatBridgeSampleActionWorkflowsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-sample-action-workflows.service';
 import { type WschatBridgeActionsTarget } from 'src/engine/core-modules/wschat-bridge/utils/build-sample-action-workflows.util';
 import { WschatBridgeSampleWorkflowsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-sample-workflows.service';
@@ -48,6 +49,10 @@ const VERSION_ROW = {
   key: WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION_KEY,
 } as const;
 
+// 1..last
+const range = (last: number) =>
+  Array.from({ length: last }, (_, index) => index + 1);
+
 const describeError = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
@@ -66,6 +71,7 @@ export class WschatBridgeStarterLayoutService {
     private readonly starterIndexViewsService: WschatBridgeStarterIndexViewsService,
     private readonly sampleWorkflowsService: WschatBridgeSampleWorkflowsService,
     private readonly sampleActionWorkflowsService: WschatBridgeSampleActionWorkflowsService,
+    private readonly indexViewRevertService: WschatBridgeIndexViewRevertService,
   ) {}
 
   async apply({
@@ -118,6 +124,8 @@ export class WschatBridgeStarterLayoutService {
     return result;
   }
 
+  // Steps in version order; each completed step records its version at once, so a pending later step
+  // (no `actions` yet) never makes the earlier ones run again. A step that is not complete stops the walk
   private async applyViews(
     workspaceId: string,
     locale: WschatBridgeLocale,
@@ -128,16 +136,53 @@ export class WschatBridgeStarterLayoutService {
       ...VERSION_ROW,
       workspaceId,
     });
-    const appliedVersion = typeof stored?.value === 'number' ? stored.value : 0;
+    let appliedVersion = typeof stored?.value === 'number' ? stored.value : 0;
 
-    if (appliedVersion >= WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION) {
-      return appliedVersion;
+    for (const version of range(WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION)) {
+      if (version <= appliedVersion) {
+        continue;
+      }
+
+      const isComplete =
+        (await this.applyViewsOfVersion(
+          workspaceId,
+          locale,
+          result,
+          version,
+        )) &&
+        (await this.applyWorkflowsOfVersion(
+          workspaceId,
+          locale,
+          result,
+          actions,
+          version,
+        ));
+
+      if (!isComplete) {
+        break;
+      }
+
+      await this.keyValuePairService.set({
+        ...VERSION_ROW,
+        workspaceId,
+        value: version,
+      });
+      appliedVersion = version;
     }
 
+    return appliedVersion;
+  }
+
+  private async applyViewsOfVersion(
+    workspaceId: string,
+    locale: WschatBridgeLocale,
+    result: WschatBridgeStarterLayoutResult,
+    version: number,
+  ): Promise<boolean> {
     let isComplete = true;
 
     for (const definition of WSCHAT_BRIDGE_STARTER_VIEWS.filter(
-      ({ version }) => version > appliedVersion,
+      (starterView) => starterView.version === version,
     )) {
       try {
         if (
@@ -160,8 +205,29 @@ export class WschatBridgeStarterLayoutService {
     }
 
     for (const definition of WSCHAT_BRIDGE_INDEX_VIEWS.filter(
-      ({ version }) => version > appliedVersion,
+      (indexView) => indexView.version === version,
     )) {
+      const { revertsIndexAs } = definition;
+
+      if (isDefined(revertsIndexAs)) {
+        try {
+          const outcome = await retryWhileSchemaBusy(() =>
+            this.indexViewRevertService.revert({ workspaceId, definition }),
+          );
+
+          if (outcome === 'changed') {
+            result.starterLayoutChanged.push(revertsIndexAs);
+          } else if (outcome === 'skipped') {
+            result.starterLayoutSkipped.push(revertsIndexAs);
+          }
+        } catch (error) {
+          isComplete = false;
+          result.starterLayoutFailed.push(
+            `${revertsIndexAs}: ${describeError(error)}`,
+          );
+        }
+      }
+
       try {
         const outcome = await retryWhileSchemaBusy(() =>
           this.starterIndexViewsService.apply({
@@ -184,7 +250,17 @@ export class WschatBridgeStarterLayoutService {
       }
     }
 
-    if (appliedVersion < WSCHAT_BRIDGE_SAMPLE_WORKFLOWS_LAYOUT_VERSION) {
+    return isComplete;
+  }
+
+  private async applyWorkflowsOfVersion(
+    workspaceId: string,
+    locale: WschatBridgeLocale,
+    result: WschatBridgeStarterLayoutResult,
+    actions: WschatBridgeActionsTarget | undefined,
+    version: number,
+  ): Promise<boolean> {
+    if (version === WSCHAT_BRIDGE_SAMPLE_WORKFLOWS_LAYOUT_VERSION) {
       try {
         const workflows =
           await this.sampleWorkflowsService.deactivateFactoryWorkflows(
@@ -194,44 +270,36 @@ export class WschatBridgeStarterLayoutService {
         result.starterLayoutChanged.push(...workflows.deactivated);
         result.starterLayoutSkipped.push(...workflows.skipped);
       } catch (error) {
-        isComplete = false;
         result.starterLayoutFailed.push(`workflows: ${describeError(error)}`);
+
+        return false;
       }
     }
 
-    if (appliedVersion < WSCHAT_BRIDGE_SAMPLE_ACTIONS_LAYOUT_VERSION) {
+    if (version === WSCHAT_BRIDGE_SAMPLE_ACTIONS_LAYOUT_VERSION) {
+      // Pending, not failed: the next call that brings `actions` creates them
       if (actions === undefined) {
-        // Pending, not failed: the next call that brings `actions` creates them
-        isComplete = false;
-      } else {
-        try {
-          result.starterLayoutCreated.push(
-            ...(await this.sampleActionWorkflowsService.createSamples({
-              workspaceId,
-              target: actions,
-              locale,
-            })),
-          );
-        } catch (error) {
-          isComplete = false;
-          result.starterLayoutFailed.push(
-            `action samples: ${describeError(error)}`,
-          );
-        }
+        return false;
+      }
+
+      try {
+        result.starterLayoutCreated.push(
+          ...(await this.sampleActionWorkflowsService.createSamples({
+            workspaceId,
+            target: actions,
+            locale,
+          })),
+        );
+      } catch (error) {
+        result.starterLayoutFailed.push(
+          `action samples: ${describeError(error)}`,
+        );
+
+        return false;
       }
     }
 
-    if (!isComplete) {
-      return appliedVersion;
-    }
-
-    await this.keyValuePairService.set({
-      ...VERSION_ROW,
-      workspaceId,
-      value: WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION,
-    });
-
-    return WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION;
+    return true;
   }
 
   // Written as a workspace override of the standard option, so upstream's base label stays as shipped
