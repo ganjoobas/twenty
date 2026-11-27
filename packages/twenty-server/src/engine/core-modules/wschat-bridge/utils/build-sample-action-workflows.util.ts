@@ -38,6 +38,16 @@ const fieldUniversalIdentifier = (
   return definition.universalIdentifier;
 };
 
+// Shared by the samples and the AI chat's WSChat step tool
+export const WSCHAT_STEP_NAMES = {
+  findClient: { en: 'Find the client', ru: 'Найти клиента' },
+  sendMessage: {
+    en: 'Send a message from WSChat',
+    ru: 'Отправить сообщение из WSChat',
+  },
+  createTask: { en: 'Create a task in WSChat', ru: 'Создать задачу в WSChat' },
+} as const;
+
 const TEXTS = {
   missedCall: {
     name: {
@@ -49,10 +59,7 @@ const TEXTS = {
       ru: 'Записан пропущенный звонок',
     },
     findPerson: { en: 'Find the caller', ru: 'Найти звонившего' },
-    action: {
-      en: 'Create a task in WSChat',
-      ru: 'Создать задачу в WSChat',
-    },
+    action: WSCHAT_STEP_NAMES.createTask,
     title: { en: 'Call back: ', ru: 'Перезвонить: ' },
   },
   closedConversation: {
@@ -64,11 +71,8 @@ const TEXTS = {
       en: 'A conversation is closed with a success',
       ru: 'Обращение закрыто с успешным итогом',
     },
-    findPerson: { en: 'Find the client', ru: 'Найти клиента' },
-    action: {
-      en: 'Send a message from WSChat',
-      ru: 'Отправить сообщение из WSChat',
-    },
+    findPerson: WSCHAT_STEP_NAMES.findClient,
+    action: WSCHAT_STEP_NAMES.sendMessage,
     text: {
       en: 'Thank you for contacting us! If you have any questions, just write to us.',
       ru: 'Спасибо за обращение! Если появятся вопросы — напишите нам.',
@@ -88,10 +92,7 @@ const TEXTS = {
       ru: 'НАСТРОЙТЕ: кому напомнить (сейчас не выбирает никого). Отправка идёт с дневными пределами канала',
     },
     loop: { en: 'For each client', ru: 'Для каждого клиента' },
-    action: {
-      en: 'Send a message from WSChat',
-      ru: 'Отправить сообщение из WSChat',
-    },
+    action: WSCHAT_STEP_NAMES.sendMessage,
     text: {
       en: 'Hello! A reminder from us: …',
       ru: 'Здравствуйте! Напоминаем: …',
@@ -131,7 +132,7 @@ const FILTER_IDS = [
   '9c8b7a6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d',
 ] as const;
 
-const httpStep = ({
+export const httpStep = ({
   universalIdentifier,
   name,
   nextStepIds,
@@ -161,16 +162,18 @@ const httpStep = ({
   },
 });
 
-const findPersonStep = ({
+export const findPersonStep = ({
   universalIdentifier,
   name,
   nextStepIds,
   filterId,
+  personIdVariable = '{{trigger.properties.after.personId}}',
 }: {
   universalIdentifier: string;
   name: string;
   nextStepIds: string[];
   filterId: string;
+  personIdVariable?: string;
 }): WorkflowManifest['version']['steps'][number] => ({
   universalIdentifier,
   name,
@@ -186,7 +189,7 @@ const findPersonStep = ({
           fieldMetadataUniversalIdentifier:
             PERSON.fields.id.universalIdentifier,
           operand: ViewFilterOperand.IS,
-          value: '["{{trigger.properties.after.personId}}"]',
+          value: `["${personIdVariable}"]`,
         },
       ],
     },
@@ -226,7 +229,7 @@ const liveRecordWithPersonFilters = ({
 ];
 
 // Same record and same change: same key, so a retried step does nothing twice; a new change gets a new key
-const TRIGGER_RECORD_KEY =
+export const TRIGGER_RECORD_KEY =
   '{{trigger.properties.after.id}}:{{trigger.properties.after.updatedAt}}';
 
 // Three switched-off samples acting in WSChat through its actions endpoint (README, "Sample action workflows")

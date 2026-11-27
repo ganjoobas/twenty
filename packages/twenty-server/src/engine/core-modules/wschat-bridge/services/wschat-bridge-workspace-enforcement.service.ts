@@ -12,6 +12,7 @@ import { WorkspaceInvitationService } from 'src/engine/core-modules/workspace-in
 import { WSCHAT_BRIDGE_COMPANY_ADMIN_ROLE } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-managed-roles.constant';
 import { WSCHAT_BRIDGE_ERROR_CODES } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-error-codes.constant';
 import { type WschatBridgeEnforceReportDTO } from 'src/engine/core-modules/wschat-bridge/dtos/wschat-bridge-enforce-report.dto';
+import { WschatBridgeActionsTargetService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-actions-target.service';
 import { WschatBridgeAssistantsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-assistants.service';
 import { WschatBridgeApiKeysService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-api-keys.service';
 import { WschatBridgeManagedRoleService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-managed-role.service';
@@ -61,6 +62,7 @@ export class WschatBridgeWorkspaceEnforcementService {
     private readonly workspaceSettingsService: WschatBridgeWorkspaceSettingsService,
     private readonly assistantsService: WschatBridgeAssistantsService,
     private readonly starterLayoutService: WschatBridgeStarterLayoutService,
+    private readonly actionsTargetService: WschatBridgeActionsTargetService,
   ) {}
 
   async enforce(
@@ -85,6 +87,10 @@ export class WschatBridgeWorkspaceEnforcementService {
       workspace.id,
       assistantsEnabled,
     );
+
+    if (isDefined(actions)) {
+      await this.actionsTargetService.store(workspace.id, actions);
+    }
 
     const serviceUserAdded = await this.ensureServiceUserIsAdmin(workspace);
 

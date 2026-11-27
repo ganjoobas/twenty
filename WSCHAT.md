@@ -38,6 +38,10 @@ This repository is upstream [Twenty](https://github.com/twentyhq/twenty) at tag
   WSChat AI endpoint can meter and bill each company.
 - `metadata-modules/ai/ai-models/services/sdk-provider-factory.service.ts`:
   openai-compatible providers ask for token usage on streamed responses.
+- `metadata-modules/ai/ai-chat/constants/ai-chat-tool-names-to-preload.const.ts`:
+  the AI chat preloads the bridge's `add_wschat_step` tool (one added line), so
+  the model sees how to build workflows acting in WSChat without loops (bridge
+  README, "AI chat: WSChat steps").
 - `twenty-front`: links in LINKS fields (`LinksFieldDisplay.tsx`) and the
   cell's "open link" button (`useGetSecondaryFieldButton.ts`) are handed to
   the page embedding the CRM instead of opening a new tab, see below

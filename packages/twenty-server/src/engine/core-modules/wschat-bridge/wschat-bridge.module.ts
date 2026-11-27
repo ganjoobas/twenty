@@ -42,6 +42,7 @@ import { WschatBridgeSecretGuard } from 'src/engine/core-modules/wschat-bridge/g
 import { WschatBridgeServiceUserConfiguredGuard } from 'src/engine/core-modules/wschat-bridge/guards/wschat-bridge-service-user-configured.guard';
 import { WschatBridgeAssistantsGateMiddleware } from 'src/engine/core-modules/wschat-bridge/middlewares/wschat-bridge-assistants-gate.middleware';
 import { WschatWorkspaceMemberFindManyPreQueryHook } from 'src/engine/core-modules/wschat-bridge/query-hooks/wschat-workspace-member-find-many.pre-query.hook';
+import { WschatBridgeActionsTargetService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-actions-target.service';
 import { WschatBridgeAssistantsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-assistants.service';
 import { WschatBridgeApiKeysService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-api-keys.service';
 import { WschatBridgeManagedRoleService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-managed-role.service';
@@ -76,6 +77,7 @@ import { WschatBridgeWorkspaceDeletionService } from 'src/engine/core-modules/ws
 import { WschatBridgeWorkspaceUsageService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-usage.service';
 import { WschatBridgeWorkspaceUpdateService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-workspace-update.service';
 import { WschatBridgeService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge.service';
+import { AddWschatStepTool } from 'src/engine/core-modules/wschat-bridge/tools/add-wschat-step.tool';
 import { RolePermissionFlagModule } from 'src/engine/metadata-modules/role-permission-flag/role-permission-flag.module';
 import { ObjectMetadataModule } from 'src/engine/metadata-modules/object-metadata/object-metadata.module';
 import { FieldMetadataModule } from 'src/engine/metadata-modules/field-metadata/field-metadata.module';
@@ -163,6 +165,9 @@ import { WorkspaceMigrationModule } from 'src/engine/workspace-manager/workspace
     WschatBridgeIndexViewRevertService,
     WschatWorkspaceMemberFindManyPreQueryHook,
     WschatBridgeFieldIconsService,
+    WschatBridgeActionsTargetService,
+    // Found by DefinedToolRegistryService through discovery (README, "AI chat: WSChat steps")
+    AddWschatStepTool,
     { provide: APP_GUARD, useClass: WschatBridgeAuthorizeAppGuard },
     // Not exported by TwoFactorAuthenticationModule; both need only core repositories, so they are provided here
     TwoFactorAuthenticationBackupCodeService,

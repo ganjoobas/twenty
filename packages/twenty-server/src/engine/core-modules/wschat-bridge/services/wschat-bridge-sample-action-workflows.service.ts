@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
 import { workflowManifestSchema } from 'twenty-shared/application';
-import { isDefined } from 'twenty-shared/utils';
 import { Repository } from 'typeorm';
 
 import { fromWorkflowStepManifestToActionOrThrow } from 'src/engine/core-modules/application/application-manifest/converters/from-workflow-step-manifest-to-action-or-throw.util';
@@ -15,6 +14,7 @@ import {
   buildSampleActionWorkflows,
   type WschatBridgeActionsTarget,
 } from 'src/engine/core-modules/wschat-bridge/utils/build-sample-action-workflows.util';
+import { buildWorkflowManifestReferences } from 'src/engine/core-modules/wschat-bridge/utils/build-workflow-manifest-references.util';
 import { WorkspaceManyOrAllFlatEntityMapsCacheService } from 'src/engine/metadata-modules/flat-entity/services/workspace-many-or-all-flat-entity-maps-cache.service';
 
 // Created as drafts through upstream's createWorkflowWithContent (the AI tool's and getting-started's path):
@@ -77,40 +77,16 @@ export class WschatBridgeSampleActionWorkflowsService {
     return created;
   }
 
-  // As buildGettingStartedWorkflowContent: manifests point at objects and fields by universal identifier
   private async buildReferences(
     workspaceId: string,
   ): Promise<WorkflowManifestReferences> {
-    const { flatObjectMetadataMaps, flatFieldMetadataMaps } =
+    return buildWorkflowManifestReferences(
       await this.flatEntityMapsCacheService.getOrRecomputeManyOrAllFlatEntityMaps(
         {
           workspaceId,
           flatMapsKeys: ['flatObjectMetadataMaps', 'flatFieldMetadataMaps'],
         },
-      );
-
-    return {
-      logicFunctionIdByUniversalIdentifier: new Map(),
-      objectByUniversalIdentifier: new Map(
-        Object.values(flatObjectMetadataMaps.byUniversalIdentifier)
-          .filter(isDefined)
-          .map((flatObjectMetadata) => [
-            flatObjectMetadata.universalIdentifier,
-            flatObjectMetadata,
-          ]),
       ),
-      fieldByUniversalIdentifier: new Map(
-        Object.values(flatFieldMetadataMaps.byUniversalIdentifier)
-          .filter(isDefined)
-          .map((flatFieldMetadata) => [
-            flatFieldMetadata.universalIdentifier,
-            {
-              ...flatFieldMetadata,
-              objectUniversalIdentifier:
-                flatFieldMetadata.objectMetadataUniversalIdentifier,
-            },
-          ]),
-      ),
-    };
+    );
   }
 }
