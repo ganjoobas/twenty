@@ -49,11 +49,23 @@ describe('WschatBridgeStarterLayoutService', () => {
     ),
   };
 
+  const starterIndexViewsService = {
+    apply: jest.fn(
+      async ({
+        definition,
+      }: {
+        definition: { reportName: string };
+      }): Promise<'changed' | 'unchanged' | 'skipped'> =>
+        definition.reportName === 'wschatCall.index' ? 'skipped' : 'changed',
+    ),
+  };
+
   const service = new WschatBridgeStarterLayoutService(
     keyValuePairService as never,
     workspaceCacheService as never,
     fieldMetadataService as never,
     starterViewsService as never,
+    starterIndexViewsService as never,
   );
 
   beforeEach(() => {
@@ -77,6 +89,7 @@ describe('WschatBridgeStarterLayoutService', () => {
     expect(storedVersion).toBe(WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION);
 
     starterViewsService.createIfMissing.mockClear();
+    starterIndexViewsService.apply.mockClear();
 
     // A company that deleted our views does not get them back
     const second = await service.apply({
@@ -85,7 +98,37 @@ describe('WschatBridgeStarterLayoutService', () => {
     });
 
     expect(starterViewsService.createIfMissing).not.toHaveBeenCalled();
+    expect(starterIndexViewsService.apply).not.toHaveBeenCalled();
     expect(second.starterLayoutCreated).toEqual([]);
+  });
+
+  it('should give a workspace at version 1 only what version 2 brings', async () => {
+    storedVersion = 1;
+
+    const result = await service.apply({
+      workspaceId: WORKSPACE_ID,
+      locale: 'ru',
+    });
+
+    expect(starterViewsService.createIfMissing).not.toHaveBeenCalled();
+    expect(starterIndexViewsService.apply).toHaveBeenCalledTimes(4);
+    expect(result.starterLayoutVersion).toBe(2);
+  });
+
+  it('should keep version 1 when a main view fails', async () => {
+    storedVersion = 1;
+    starterIndexViewsService.apply.mockRejectedValueOnce(new Error('busy'));
+
+    const result = await service.apply({
+      workspaceId: WORKSPACE_ID,
+      locale: 'ru',
+    });
+
+    expect(result.starterLayoutFailed).toEqual([
+      'wschatConversation.index: busy',
+    ]);
+    expect(result.starterLayoutVersion).toBe(1);
+    expect(storedVersion).toBe(1);
   });
 
   it('should keep the version and report the view when one fails, then finish on the next call', async () => {

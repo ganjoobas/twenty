@@ -6,6 +6,7 @@ import { KeyValuePairType } from 'src/engine/core-modules/key-value-pair/key-val
 import { KeyValuePairService } from 'src/engine/core-modules/key-value-pair/key-value-pair.service';
 import { type WschatBridgeLocale } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-data-model.constant';
 import {
+  WSCHAT_BRIDGE_INDEX_VIEWS,
   WSCHAT_BRIDGE_STANDARD_OPTION_LABELS,
   WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION,
   WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION_KEY,
@@ -13,6 +14,7 @@ import {
   type WschatBridgeStandardOptionLabels,
   type WschatBridgeStarterLayoutKeyValueTypesMap,
 } from 'src/engine/core-modules/wschat-bridge/constants/wschat-bridge-starter-layout.constant';
+import { WschatBridgeStarterIndexViewsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-starter-index-views.service';
 import { WschatBridgeStarterViewsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-starter-views.service';
 import { planStandardOptionRelabels } from 'src/engine/core-modules/wschat-bridge/utils/plan-standard-option-relabels.util';
 import { retryWhileSchemaBusy } from 'src/engine/core-modules/wschat-bridge/utils/schema-busy-retry.util';
@@ -25,6 +27,10 @@ export type WschatBridgeStarterLayoutResult = {
   starterLayoutCreated: string[];
   // Standard option lists whose shipped English labels were translated ("task.status")
   starterLayoutRelabelled: string[];
+  // Main views renamed or given columns ("wschatCall.index", "person.index")
+  starterLayoutChanged: string[];
+  // Main views left alone because the company already changed them
+  starterLayoutSkipped: string[];
   // Steps that failed, with a short reason; the next call tries them again
   starterLayoutFailed: string[];
   // Highest layout version applied to this workspace
@@ -52,6 +58,7 @@ export class WschatBridgeStarterLayoutService {
     private readonly workspaceCacheService: WorkspaceCacheService,
     private readonly fieldMetadataService: FieldMetadataService,
     private readonly starterViewsService: WschatBridgeStarterViewsService,
+    private readonly starterIndexViewsService: WschatBridgeStarterIndexViewsService,
   ) {}
 
   async apply({
@@ -64,6 +71,8 @@ export class WschatBridgeStarterLayoutService {
     const result: WschatBridgeStarterLayoutResult = {
       starterLayoutCreated: [],
       starterLayoutRelabelled: [],
+      starterLayoutChanged: [],
+      starterLayoutSkipped: [],
       starterLayoutFailed: [],
       starterLayoutVersion: 0,
     };
@@ -130,6 +139,31 @@ export class WschatBridgeStarterLayoutService {
           )
         ) {
           result.starterLayoutCreated.push(definition.reportName);
+        }
+      } catch (error) {
+        isComplete = false;
+        result.starterLayoutFailed.push(
+          `${definition.reportName}: ${describeError(error)}`,
+        );
+      }
+    }
+
+    for (const definition of WSCHAT_BRIDGE_INDEX_VIEWS.filter(
+      ({ version }) => version > appliedVersion,
+    )) {
+      try {
+        const outcome = await retryWhileSchemaBusy(() =>
+          this.starterIndexViewsService.apply({
+            workspaceId,
+            definition,
+            locale,
+          }),
+        );
+
+        if (outcome === 'changed') {
+          result.starterLayoutChanged.push(definition.reportName);
+        } else if (outcome === 'skipped') {
+          result.starterLayoutSkipped.push(definition.reportName);
         }
       } catch (error) {
         isComplete = false;

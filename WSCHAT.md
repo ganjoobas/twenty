@@ -27,7 +27,9 @@ This repository is upstream [Twenty](https://github.com/twentyhq/twenty) at tag
   task status and opportunity stage lists (as workspace overrides, only while
   they read as shipped) and four views (tasks by type, open conversations,
   conversations by outcome, missed calls), all through upstream's metadata
-  services (README, "Starter layout").
+  services (README, "Starter layout"). Version 2 renames and sets the columns
+  of the main conversation and call views while untouched, and appends WSChat
+  columns to the main people and company views.
 - `auth/constants/max-workspaces-without-organization-key.constant.ts`: the
   number of workspaces allowed without an enterprise key is raised from 5 to
   10000, because every WSChat client company gets its own workspace.
@@ -66,6 +68,20 @@ This repository is upstream [Twenty](https://github.com/twentyhq/twenty) at tag
     person from every company's CRM and the next sync would recreate them.
   - Invite user in the workspace menu (`MultiWorkspaceDropdownDefaultComponents.tsx`):
     people are invited only by WSChat; the item only led back to the profile.
+  - the workspace sign-in screen (`SignInUp.tsx`, flag `signInScreen`): it
+    offers no way in here, so a signed-out visitor goes to WSChat instead
+    (`modules/wschat/hooks/useWschatEnterThroughHost.ts`). In the WSChat frame
+    the frame itself reloads on `<embedding page>/workspace/crm/enter?frame=1`
+    (origin as `postLinkToEmbeddingHost` reads it, now exported as
+    `getEmbeddingHostOrigin`); a standalone tab goes to
+    `https://<FRONTEND_URL host>/workspace/crm/enter`, FRONTEND_URL being
+    WSChat's own address in this setup, with `return=<path>` only for an
+    assistant's consent page (`/authorize?…`, at most 2048 characters). WSChat
+    turns it into the login link's `returnToPath`. Only the plain screen of a
+    workspace (step Init, no invitation) is replaced; the 2FA steps after a
+    login link, `/verify` and the other pages are not. One trip per tab every
+    2 minutes (`sessionStorage`), so a refusal on the WSChat side shows the
+    plain screen instead of a loop.
 - `twenty-front`: the MCP tab of AI settings and the MCP card of its overview
   are shown only where the server lets assistants in (`SettingsAI.tsx`,
   `modules/wschat/hooks/useWschatAssistantsAllowed.ts`: one request to

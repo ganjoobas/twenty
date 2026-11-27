@@ -345,8 +345,10 @@ Response:
   "dataModelReady": true,
   "starterLayoutCreated": ["task.byType", "wschatConversation.open", "wschatConversation.byOutcome", "wschatCall.missed"],
   "starterLayoutRelabelled": ["task.status", "opportunity.stage"],
+  "starterLayoutChanged": ["wschatConversation.index", "wschatCall.index", "person.index", "company.index"],
+  "starterLayoutSkipped": [],
   "starterLayoutFailed": [],
-  "starterLayoutVersion": 1
+  "starterLayoutVersion": 2
 }
 ```
 
@@ -625,7 +627,7 @@ so a Russian workspace showed `To do` / `In progress` / `Done`.
   reset the labels to English, the rule "relabel while it reads as shipped"
   runs on every `enforce` and puts them back, with no extra cost otherwise.
 
-**Starter views**, once per layout version:
+**Starter views** (version 1), once per layout version:
 
 | Object | View | Shape |
 | --- | --- | --- |
@@ -658,6 +660,28 @@ so a Russian workspace showed `To do` / `In progress` / `Done`.
   company between such a failure and its retry would come back once.
 - To ship more later: raise `WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION` and tag the
   new views with it.
+
+**Main views** (version 2, `services/wschat-bridge-starter-index-views.service.ts`):
+each object's INDEX view, edited with upstream's view and view-field utils in
+one workspace migration. Columns are only added, moved or hidden, never deleted.
+
+| Object | Change |
+| --- | --- |
+| wschatConversation | renamed All conversations / Все обращения; columns name, person, channel, state, outcome, responsible, lastMessageAt, lastMessageFrom, startedAt, wschatUrl, the others hidden after them |
+| wschatCall | renamed All calls / Все звонки; columns name, person, direction, status, channel, startedAt, durationSeconds, answeredBy, outcome, summary, wschatUrl, the others hidden |
+| person | wschatLastContactAt, wschatLastChannel, wschatUrl appended, unless already on the view (shown or hidden) |
+| company | wschatPhones, wschatUrl appended, same rule |
+
+- The two renames happen only while the view is untouched: still named
+  upstream's template `All {objectLabelPlural}`, no override on the view, and
+  every column engine-made (`isSystemSideEffect`), shown and without override.
+  Edits made in the app on engine-made views and columns are stored as
+  overrides (`isCallerOverridingEntity`), and columns a company adds are not
+  engine-made, so renaming, hiding, moving and adding are all seen; a column
+  the company deleted is not. A touched view is reported in
+  `starterLayoutSkipped` and never changed.
+- Report: `starterLayoutChanged` (main views written), `starterLayoutSkipped`.
+  A workspace already at version 1 gets only these.
 
 ## Workflows
 

@@ -16,7 +16,12 @@ type PostLinkToEmbeddingHostArgs = {
 
 // frame-ancestors only lets 'self' and the workspace's allowed embedding origins frame the app, so the parent is trusted.
 // Firefox has no ancestorOrigins, hence the referrer fallback.
-const getEmbeddingHostOrigin = (currentWindow: EmbeddingHostWindow) => {
+export const getEmbeddingHostOrigin = (
+  currentWindow: Pick<
+    EmbeddingHostWindow,
+    'self' | 'top' | 'location' | 'document'
+  >,
+) => {
   if (currentWindow.self === currentWindow.top) {
     return undefined;
   }

@@ -50,6 +50,7 @@ import { WschatBridgeOnboardingService } from 'src/engine/core-modules/wschat-br
 import { WschatBridgeRolesService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-roles.service';
 import { WschatBridgeDictionariesService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-dictionaries.service';
 import { WschatBridgeDataModelService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-data-model.service';
+import { WschatBridgeStarterIndexViewsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-starter-index-views.service';
 import { WschatBridgeStarterLayoutService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-starter-layout.service';
 import { WschatBridgeStarterViewsService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-starter-views.service';
 import { WschatBridgeServiceUserService } from 'src/engine/core-modules/wschat-bridge/services/wschat-bridge-service-user.service';
@@ -133,6 +134,7 @@ import { WorkspaceMigrationModule } from 'src/engine/workspace-manager/workspace
     WschatBridgeAssistantsService,
     WschatBridgeStarterLayoutService,
     WschatBridgeStarterViewsService,
+    WschatBridgeStarterIndexViewsService,
     { provide: APP_GUARD, useClass: WschatBridgeAuthorizeAppGuard },
     // Not exported by TwoFactorAuthenticationModule; both need only core repositories, so they are provided here
     TwoFactorAuthenticationBackupCodeService,

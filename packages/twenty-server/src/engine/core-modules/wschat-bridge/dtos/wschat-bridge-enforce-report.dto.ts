@@ -60,6 +60,12 @@ export class WschatBridgeEnforceReportDTO {
   // Standard option lists whose shipped English labels were translated ("task.status")
   starterLayoutRelabelled: string[];
 
+  // Main views renamed or given columns ("wschatCall.index", "person.index")
+  starterLayoutChanged: string[];
+
+  // Main views left alone because the company already changed them
+  starterLayoutSkipped: string[];
+
   // Starter layout steps that failed (name: reason); the next enforce retries them
   starterLayoutFailed: string[];
 

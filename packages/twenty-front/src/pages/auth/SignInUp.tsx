@@ -26,6 +26,8 @@ import { useGetPublicWorkspaceDataByDomain } from '@/domain-manager/hooks/useGet
 import { useIsCurrentLocationOnAWorkspace } from '@/domain-manager/hooks/useIsCurrentLocationOnAWorkspace';
 import { useIsCurrentLocationOnDefaultDomain } from '@/domain-manager/hooks/useIsCurrentLocationOnDefaultDomain';
 import { useMemo } from 'react';
+// WSChat fork: no way in on the workspace sign-in screen, enter through WSChat; see WSCHAT.md
+import { useWschatEnterThroughHost } from '@/wschat/hooks/useWschatEnterThroughHost';
 
 import { SignInUpGlobalScopeFormEffect } from '@/auth/sign-in-up/components/internal/SignInUpGlobalScopeFormEffect';
 import { SignInUpSsoExchangeTokenEffect } from '@/auth/sign-in-up/components/internal/SignInUpSsoExchangeTokenEffect';
@@ -78,6 +80,16 @@ export const SignInUp = () => {
     useWorkspaceFromInviteHash();
 
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // WSChat fork: only the empty workspace screen; 2FA steps and invitations stay as upstream
+  const isEnteringThroughWschat = useWschatEnterThroughHost(
+    isOnAWorkspace &&
+      isDefined(workspacePublicData) &&
+      !isDefined(workspaceInviteHash) &&
+      signInUpStep === SignInUpStep.Init &&
+      !getPublicWorkspaceDataLoading &&
+      clientConfigApiStatus.isLoadedOnce,
+  );
 
   const onClickOnLogo = () => {
     setSignInUpStep(SignInUpStep.Init);
@@ -142,7 +154,11 @@ export const SignInUp = () => {
   ]);
 
   const signInUpForm = useMemo(() => {
-    if (getPublicWorkspaceDataLoading || !clientConfigApiStatus.isLoadedOnce) {
+    if (
+      getPublicWorkspaceDataLoading ||
+      !clientConfigApiStatus.isLoadedOnce ||
+      isEnteringThroughWschat
+    ) {
       return (
         <StyledLoaderContainer>
           <Loader color="gray" />
@@ -208,6 +224,7 @@ export const SignInUp = () => {
     getPublicWorkspaceDataLoading,
     signInUpStep,
     workspacePublicData,
+    isEnteringThroughWschat,
   ]);
 
   return signInUpStep === SignInUpStep.WorkspaceCreation ? (

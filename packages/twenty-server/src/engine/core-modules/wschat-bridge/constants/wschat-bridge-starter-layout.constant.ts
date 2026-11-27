@@ -16,7 +16,7 @@ export const WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION_KEY =
   'WSCHAT_STARTER_LAYOUT_VERSION';
 
 // Raise it with new views tagged with the new number; a workspace only gets views newer than what it has
-export const WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION = 1;
+export const WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION = 2;
 
 export type WschatBridgeStarterLayoutKeyValueTypesMap = {
   [WSCHAT_BRIDGE_STARTER_LAYOUT_VERSION_KEY]: number;
@@ -162,3 +162,71 @@ export const WSCHAT_BRIDGE_STARTER_VIEWS: WschatBridgeStarterViewDefinition[] =
       sort: { fieldName: 'startedAt', direction: ViewSortDirection.DESC },
     },
   ];
+
+// The object's main (INDEX) view: `reshape` renames it and sets its columns only while untouched,
+// `append` adds missing columns at its end and leaves the rest alone
+export type WschatBridgeIndexViewDefinition = {
+  version: number;
+  reportName: string;
+  objectUniversalIdentifier: string;
+  mode: 'reshape' | 'append';
+  name?: WschatBridgeLocalizedText;
+  fieldNames: string[];
+};
+
+export const WSCHAT_BRIDGE_INDEX_VIEWS: WschatBridgeIndexViewDefinition[] = [
+  {
+    version: 2,
+    reportName: 'wschatConversation.index',
+    objectUniversalIdentifier:
+      WSCHAT_BRIDGE_CONVERSATION_OBJECT.universalIdentifier,
+    mode: 'reshape',
+    name: { en: 'All conversations', ru: 'Все обращения' },
+    fieldNames: [
+      'name',
+      'person',
+      'channel',
+      'state',
+      'outcome',
+      'responsible',
+      'lastMessageAt',
+      'lastMessageFrom',
+      'startedAt',
+      'wschatUrl',
+    ],
+  },
+  {
+    version: 2,
+    reportName: 'wschatCall.index',
+    objectUniversalIdentifier: WSCHAT_BRIDGE_CALL_OBJECT.universalIdentifier,
+    mode: 'reshape',
+    name: { en: 'All calls', ru: 'Все звонки' },
+    fieldNames: [
+      'name',
+      'person',
+      'direction',
+      'status',
+      'channel',
+      'startedAt',
+      'durationSeconds',
+      'answeredBy',
+      'outcome',
+      'summary',
+      'wschatUrl',
+    ],
+  },
+  {
+    version: 2,
+    reportName: 'person.index',
+    objectUniversalIdentifier: STANDARD_OBJECTS.person.universalIdentifier,
+    mode: 'append',
+    fieldNames: ['wschatLastContactAt', 'wschatLastChannel', 'wschatUrl'],
+  },
+  {
+    version: 2,
+    reportName: 'company.index',
+    objectUniversalIdentifier: STANDARD_OBJECTS.company.universalIdentifier,
+    mode: 'append',
+    fieldNames: ['wschatPhones', 'wschatUrl'],
+  },
+];
